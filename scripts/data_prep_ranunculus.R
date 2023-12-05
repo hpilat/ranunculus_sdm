@@ -1,30 +1,24 @@
-## Extent ##
-
-# create a SpatExtent for BC based on the bc_extent object
-  # cannot coerce Extent object to SpatRaster
-bc_spatextent <- ext(bc_extent)
-# now create a regular SpatRaster for bc_extent
-bc_extent_rast <- rast(bc_spatextent)
-
 ## Occurrence Data ##
 
-# clean the occurrence records using CoordinateCleaner package
+# clean the occurrence records using CoordinateCleaner package?
 # record-level tests
 
-cl_coord_ran <- clean_coordinates(x = ran_occ, lon = "longitude", 
-                                  lat = "latitude",
-                                  species = "scientific_name")
+# cl_coord_ran <- clean_coordinates(x = ran_occ_download, lon = "decimalLongitude", 
+                                 #  lat = "decimalLatitude",
+                                 #  species = "scientificName")
 
 # select only the relevant columns (species, longitude, latitude)?
-ran_occ <- dplyr::select(ran_occ, gbifID, occurrenceStatus, longitude, latitude)
+ran_occ <- dplyr::select(ran_occ_download, gbifID, occurrenceStatus, 
+                         decimalLongitude, decimalLatitude) # dataframe
 
-# create a SpatVector object for the occurrence data
-ran_occ_vect <- vect(ran_occ, geom = c("longitude", "latitude"), 
+# create a SpatVector object for the occurrence data?
+ran_occ_vect <- vect(ran_occ, geom = c("decimalLongitude", "decimalLatitude"), 
                      crs = "EPSG:4326", keepgeom = FALSE)
 
 # crop the SpatVector to the extent of British Columbia
 ran_occ_bc <- crop(ran_occ_vect, bc_extent_rast)
-crs(ran_occ_bc)
+ran_occ_bc
+
 
 ## Predictor Data ##
 
@@ -70,11 +64,15 @@ bc_bec <- rast(bc_bec)
 # reproject BEC data to WGS84
 bc_bec <- terra::project(bc_bec, "EPSG:4326", method = "near")
 
-# crop BEC data to BC extent
+# crop BEC data to match BC extent
 bc_bec <- crop(bc_bec, bc_extent_rast)
 
 # resample BEC data to match resolution of other rasters
 bc_bec <- resample(bc_bec, soil_temp_0_5_bc)
+# might be losing raster cell values at this stage?
+
+# write new BEC data to raster for easier future use
+writeRaster(bc_bec, "data/bc_bec.tif", overwrite = FALSE)
 
 # crop elevation data to British Columbia extent
 elevation_bc <- crop(elevation_canada, bc_extent_rast)
@@ -85,15 +83,20 @@ elevation_bc <- terra::project(elevation_bc, "EPSG:4326", method = "bilinear")
 # remove NA values
 na.omit(elevation_bc)
 
+# select March to June for average temperatures (relevant to growing season)
+tavg_canada_mar_jun <- tavg_canada[[3:6]]
+
+tavg_canada_mar_jun <- project(tavg_canada_mar_jun, "EPSG:4326", method = "bilinear")
+
 # aggregate tavg_canada raster so it can be cropped
 # by a factor of 3 to go from 5040 columns to closer to 1404 (size of bc_extent_rast)
-aggregated_tavg_canada <- aggregate(tavg_canada, fact = 3)
+agg_tavg_canada <- aggregate(tavg_canada, fact = 3)
 
 # crop average monthly temperature data to British Columbia extent
-tavg_bc <- crop(aggregated_tavg_canada, bc_extent_rast)
+tavg_bc <- crop(tavg_canada_mar_jun, bc_extent_rast)
 
 # resample average monthly temperature data
-tavg_bc <- resample(aggregated_tavg_canada, soil_temp_0_5_bc)
+tavg_bc <- resample(agg_tavg_canada, soil_temp_0_5_bc)
 
 # remove NA values
 na.omit(tavg_bc)
@@ -115,6 +118,7 @@ lndcvr_bc <- crop(lndcvr_na_agg, bc_extent_rast)
 
 # resample landcover BC data to change resolution
 lndcvr_bc <- resample(lndcvr_bc, soil_temp_0_5_bc)
+
 
 # remove NA values
 na.omit(lndcvr_bc)

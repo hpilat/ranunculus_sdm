@@ -1,21 +1,64 @@
 # dir.create("data/")
 # dir.create("scripts/")
 library(tidyverse)
-library(biomod2)
 library(geodata)
 library(bcmaps)
 library(bcdata)
 library(terra)
 library(raster)
+library(rgbif)
 library(CoordinateCleaner)
 # note: cannot load rgdal and terra at the same time 
-  # if using project function from terra (solution is to call terra::project)
+  # if using project function from terra (call terra::project)
 
-# load the species data
-ran_occ <- read.csv("data/ranunculus_occ.csv", header = TRUE, sep = ",")
+## Extent ##
 
 # read in the boundaries for British Columbia (BC)
 bc_extent <- bcmaps::bc_bbox(class = ("raster"), crs = "EPSG:4326")
+# create a SpatExtent for BC based on the bc_extent object
+# cannot coerce Extent object to SpatRaster
+bc_spatextent <- ext(bc_extent)
+# now create a regular SpatRaster for bc_extent
+bc_extent_rast <- rast(bc_spatextent)
+ 
+
+## Occurrence Data ##
+
+# set up GBIF credentials
+# install.packages("usethis")
+usethis::edit_r_environ()
+
+# download occurrence data for Ranunculus glaberrimus
+rgbif::occ_download(
+  pred("hasGeospatialIssue", FALSE), 
+  pred("hasCoordinate", TRUE), 
+  pred("basisOfRecord", "HUMAN_OBSERVATION"),
+  pred("country", "CA"),
+  pred("taxonKey", 3033299), 
+  format = "SIMPLE_CSV")
+
+# to check status of download:
+occ_download_wait('0019946-231120084113126')
+
+# to access download when it's finished
+ran_occ_download <- occ_download_get('0019946-231120084113126') %>%
+  occ_download_import()
+
+# Download Info:
+# Username: hpilat
+# E-mail: hannahepilat@gmail.com
+# Format: SIMPLE_CSV
+# Download key: 0019946-231120084113126
+# Created: 2023-12-05T18:28:14.357+00:00
+# Citation Info:  
+ # Please always cite the download DOI when using this data.
+# https://www.gbif.org/citation-guidelines
+# DOI: 10.15468/dl.cwqmqu
+# Citation:
+ #  GBIF Occurrence Download https://doi.org/10.15468/dl.cwqmqu Accessed from R 
+    # via rgbif (https://github.com/ropensci/rgbif) on 2023-12-05
+
+## Predictor Data ##
 
 # read in BEC map from bcmaps
 bc_bec <- bcmaps::bec(ask = interactive(), force = FALSE)
@@ -33,13 +76,21 @@ soil_temp_0_5 <- rast("data/SBIO4_Temperature_Seasonality_0_5cm.tif")
 soil_temp_5_15 <- rast("data/SBIO4_Temperature_Seasonality_5_15cm.tif")
 
 # world soil pH data: 
-soil_phh2o_0_5 <- soil_world(var = "phh2o", depth = 5, stat = "mean", 
-                            path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
-                            na.rm = TRUE)
+# had an error with geodata package, said server was down for maintenance
+# https://files.isric.org/soilgrids/latest/data_aggregated/1000m/phh2o/
 
-soil_phh2o_5_15 <- soil_world(var = "phh2o", depth = 15, stat = "mean", 
-                              path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
-                              na.rm = TRUE)
+soil_phh2o_0_5 <- rast("data/phh2o_0-5cm_mean_1000.tif")
+
+soil_phh2o_5_15 <- rast("data/phh2o_5-15cm_mean_1000.tif")
+
+# soil_phh2o_0_5 <- soil_world(var = "phh2o", depth = 5, stat = "mean", 
+                             # path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
+                             # na.rm = TRUE)
+
+# soil_phh2o_5_15 <- soil_world(var = "phh2o", depth = 15, stat = "mean", 
+                             # path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
+                             # na.rm = TRUE)
+
 
 # unified North American soil data
 # download.file("https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1242", 

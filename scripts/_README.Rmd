@@ -1,0 +1,6 @@
+Folder for scripts related to testing species distribution models for 
+Ranunculus glaberrimus
+
+First run data_download_ranunculus.R script, 
+followed by data_prep_ranunculus.R script, 
+then tidysdm_ranunculus.R script. 

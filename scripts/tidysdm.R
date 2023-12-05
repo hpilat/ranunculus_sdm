@@ -72,13 +72,30 @@ ggplot() +
 
 
 ##  Sample Pseudoabsences  ##
+
 # constrain pseudoabsences to be minimum 50km away from presence points
 # select 3 times as many pseudoabsences as presences
 set.seed(1234567)
 lacerta_thin <- sample_pseudoabs(lacerta_thin, 
                                  n = 3 * nrow(lacerta_thin), 
                                  raster = land_mask, 
-                                 # coords = "geometry", 
+                                 coords = NULL, 
 ## error message said coords vector (x and y column names) needs to be specified,
 ## internal function wants a data.frame with coordinates and columns with x and y
                                  method = c("dist_min"), km2m(50))
+
+##  Sample Pseudoabsences  ##
+# constrain pseudoabsences to be minimum 50km away from presence points
+# select 3 times as many pseudoabsences as presences
+set.seed(1234567)
+
+#lacerta_thin_withcoords <- lacerta_thin %>% dplyr::bind_cols(sf::st_coordinates(lacerta_thin))
+
+lacerta_thin_new <- sample_pseudoabs(data = lacerta_thin, 
+                                     n = 3 * nrow(lacerta_thin), 
+                                     raster = land_mask, 
+                                     coords = c("X", "Y"), 
+                                     method = c("dist_min"), km2m(50))
+
+#                                 Error in `dplyr::bind_rows()`:
+#                                   ! Can't combine `..1$class` <character> and `..2$class` <double>.
