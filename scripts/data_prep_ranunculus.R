@@ -64,15 +64,15 @@ bc_bec <- rast(bc_bec)
 # reproject BEC data to WGS84
 bc_bec <- terra::project(bc_bec, "EPSG:4326", method = "near")
 
-# crop BEC data to match BC extent
-bc_bec <- crop(bc_bec, bc_extent_rast)
+# crop BEC data to match BC extent?
+# bc_bec <- crop(bc_bec, bc_extent_rast)
 
 # resample BEC data to match resolution of other rasters
-bc_bec <- resample(bc_bec, soil_temp_0_5_bc)
+# bc_bec <- resample(bc_bec, soil_temp_0_5_bc)
 # might be losing raster cell values at this stage?
 
 # write new BEC data to raster for easier future use
-writeRaster(bc_bec, "data/bc_bec.tif", overwrite = FALSE)
+# writeRaster(bc_bec, "data/bc_bec.tif", overwrite = FALSE)
 
 # crop elevation data to British Columbia extent
 elevation_bc <- crop(elevation_canada, bc_extent_rast)
