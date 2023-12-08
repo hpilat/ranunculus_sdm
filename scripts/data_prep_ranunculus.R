@@ -59,20 +59,36 @@ na.omit(soil_phh2o_5_15_bc)
 # soil_temp_5_15_bc[is.na(soil_temp_5_15_bc[])] <- -9999 
 
 # create a SpatRaster of the BEC data
-bc_bec <- rast(bc_bec)
+# start by turning bc_bec into a SpatVector object
+# bc_bec_vec <- vect(bc_bec)
+
+# calculate number of rows (Y direction) and columns (X) for raster 
+# using 1km resolution (1000)
+# numcols <- as.vector(ceiling((st_bbox(bc_bec)$xmax - st_bbox(bc_bec)$xmin)/1000))
+# numrows <- as.vector(ceiling((st_bbox(bc_bec)$ymax - st_bbox(bc_bec)$ymin)/1000))
+
+# create a temporary raster with number of columns and rows from above
+# bec_temprast <- rast(bc_bec_vec, ncols = numcols, nrows = numrows)
+
+# create raster from SpatVector and structure of temporary raster
+# select "ZONE" layer from BEC data
+# bc_bec <- rasterize(bc_bec_vec, bec_temprast, "ZONE")
+# plot(bc_bec)
 
 # reproject BEC data to WGS84
-bc_bec <- terra::project(bc_bec, "EPSG:4326", method = "near")
+# bc_bec <- terra::project(bc_bec, "EPSG:4326", method = "near")
 
 # crop BEC data to match BC extent?
 # bc_bec <- crop(bc_bec, bc_extent_rast)
 
 # resample BEC data to match resolution of other rasters
 # bc_bec <- resample(bc_bec, soil_temp_0_5_bc)
-# might be losing raster cell values at this stage?
 
 # write new BEC data to raster for easier future use
-# writeRaster(bc_bec, "data/bc_bec.tif", overwrite = FALSE)
+# bc_bec <- writeRaster(bc_bec, "data/bc_bec.tif", overwrite = TRUE)
+
+# import bc_bec data from new file
+bc_bec <- rast("data/bc_bec.tif")
 
 # crop elevation data to British Columbia extent
 elevation_bc <- crop(elevation_canada, bc_extent_rast)
@@ -88,9 +104,9 @@ tavg_canada_mar_jun <- tavg_canada[[3:6]]
 
 tavg_canada_mar_jun <- project(tavg_canada_mar_jun, "EPSG:4326", method = "bilinear")
 
-# aggregate tavg_canada raster so it can be cropped
+# aggregate tavg_canada raster so it can be cropped?
 # by a factor of 3 to go from 5040 columns to closer to 1404 (size of bc_extent_rast)
-agg_tavg_canada <- aggregate(tavg_canada, fact = 3)
+# agg_tavg_canada <- aggregate(tavg_canada, fact = 3)
 
 # crop average monthly temperature data to British Columbia extent
 tavg_bc <- crop(tavg_canada_mar_jun, bc_extent_rast)
@@ -108,7 +124,15 @@ prec_bc <- crop(prec_canada, bc_extent_rast)
 na.omit(prec_bc)
 
 # aggregate landcover data so it can be reprojected and cropped
-lndcvr_na_agg <- aggregate(lndcvr_na, fact = 15)
+# lndcvr_na_agg <- aggregate(lndcvr_na, fact = 15)
+
+# write aggregated landcover data to file for easier reuse
+# lndcvr-north-america_agg <-writeRaster(lndcvr_na_agg, 
+                                     #  filename = "data/lndcvr-north-america_agg.tif", 
+                                     #  overwrite = TRUE)
+
+# create raster of aggregated landcover data from new file
+lndcvr_na_agg <- rast("data/lndcvr-north-america_agg.tif")
 
 # reproject landcover North America data to WGS84
 lndcvr_na_agg <- terra::project(lndcvr_na_agg, "EPSG:4326", method = "near")

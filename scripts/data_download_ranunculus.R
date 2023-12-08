@@ -6,6 +6,7 @@ library(bcmaps)
 library(bcdata)
 library(terra)
 library(raster)
+library(sf)
 library(rgbif)
 library(CoordinateCleaner)
 # note: cannot load rgdal and terra at the same time 
@@ -26,7 +27,7 @@ bc_extent_rast <- rast(bc_spatextent)
 
 # set up GBIF credentials
 # install.packages("usethis")
-usethis::edit_r_environ()
+# usethis::edit_r_environ()
 
 # download occurrence data for Ranunculus glaberrimus
 rgbif::occ_download(
