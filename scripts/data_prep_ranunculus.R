@@ -7,8 +7,8 @@
                                  #  lat = "decimalLatitude",
                                  #  species = "scientificName")
 
-# select only the relevant columns (species, longitude, latitude)?
-ran_occ <- dplyr::select(ran_occ_download, gbifID, occurrenceStatus, 
+# select only the relevant columns (ID column, longitude, latitude)?
+ran_occ <- dplyr::select(ran_occ_download, gbifID, 
                          decimalLongitude, decimalLatitude) # dataframe
 
 # create a SpatVector object for the occurrence data?
@@ -104,15 +104,16 @@ tavg_canada_mar_jun <- tavg_canada[[3:6]]
 
 tavg_canada_mar_jun <- project(tavg_canada_mar_jun, "EPSG:4326", method = "bilinear")
 
+# OR: 
 # aggregate tavg_canada raster so it can be cropped?
 # by a factor of 3 to go from 5040 columns to closer to 1404 (size of bc_extent_rast)
 # agg_tavg_canada <- aggregate(tavg_canada, fact = 3)
+# tavg_bc <- crop(tavg_canada, bc_extent_rast)
+# resample average monthly temperature data
+# tavg_bc <- resample(agg_tavg_canada, soil_temp_0_5_bc)
 
 # crop average monthly temperature data to British Columbia extent
 tavg_bc <- crop(tavg_canada_mar_jun, bc_extent_rast)
-
-# resample average monthly temperature data
-tavg_bc <- resample(agg_tavg_canada, soil_temp_0_5_bc)
 
 # remove NA values
 na.omit(tavg_bc)
@@ -131,21 +132,27 @@ na.omit(prec_bc)
                                      #  filename = "data/lndcvr-north-america_agg.tif", 
                                      #  overwrite = TRUE)
 
-# create raster of aggregated landcover data from new file
-lndcvr_na_agg <- rast("data/lndcvr-north-america_agg.tif")
+# create SpatRaster of aggregated landcover data from new file
+# lndcvr_na_agg <- rast("data/lndcvr-north-america_agg.tif")
 
 # reproject landcover North America data to WGS84
-lndcvr_na_agg <- terra::project(lndcvr_na_agg, "EPSG:4326", method = "near")
+# lndcvr_na_agg <- terra::project(lndcvr_na_agg, "EPSG:4326", method = "near")
 
 # crop landcover North America data to BC's extent
-lndcvr_bc <- crop(lndcvr_na_agg, bc_extent_rast)
+# lndcvr_bc <- crop(lndcvr_na_agg, bc_extent_rast)
 
 # resample landcover BC data to change resolution
-lndcvr_bc <- resample(lndcvr_bc, soil_temp_0_5_bc)
-
+# lndcvr_bc <- resample(lndcvr_bc, soil_temp_0_5_bc)
 
 # remove NA values
-na.omit(lndcvr_bc)
+# na.omit(lndcvr_bc)
+
+# create file of BC landcover data for easier/faster re-use
+# lndcvr_bc <- writeRaster(lndcvr_bc, "data/lndcvr_bc.tif", overwrite = TRUE)
+
+# import landcover BC data from new file created above
+lndcvr_bc <- rast("data/lndcvr_bc.tif")
+
 
 ## Multilayer Raster ##
 
@@ -160,12 +167,13 @@ predictors_multirast <- rast(c(elevation_bc,
                                tavg_bc,
                                lndcvr_bc))
 
-# bc_bec has all NA values, tavg_bc has all 0 values
-# flexsdm requires environmental raster consist of all continuous variables
-pred_rast <- c(elevation_bc,
-                    soil_temp_0_5_bc, 
-                    soil_temp_5_15_bc, 
-                    soil_phh2o_0_5_bc, 
-                    soil_phh2o_5_15_bc)
+
+
+# flexsdm requires environmental raster consisting of all continuous variables
+# pred_rast <- c(elevation_bc,
+              # soil_temp_0_5_bc,
+              # soil_temp_5_15_bc,
+              # soil_phh2o_0_5_bc, 
+              # soil_phh2o_5_15_bc)
 
                     

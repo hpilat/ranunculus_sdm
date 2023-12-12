@@ -16,9 +16,22 @@ library(CoordinateCleaner)
 
 # read in the boundaries for British Columbia (BC)
 bc_extent <- bcmaps::bc_bbox(class = ("raster"), crs = "EPSG:4326")
+
+bc_bound_sf <- bcmaps::bc_bound(ask = interactive, force = FALSE)
+
+# create a SpatVector for the BC boundary
+bc_bound <- vect(bc_bound_sf)
+
+# reproject BC Boundary to WGS84
+bc_bound <- terra::project(bc_bound, "EPSG:4326")
+
 # create a SpatExtent for BC based on the bc_extent object
 # cannot coerce Extent object to SpatRaster
 bc_spatextent <- ext(bc_extent)
+
+# create a vector from the BC boundary
+bc_vect <- as.polygons(bc_spatextent, crs = "EPSG:4326")
+
 # now create a regular SpatRaster for bc_extent
 bc_extent_rast <- rast(bc_spatextent)
  
@@ -80,17 +93,17 @@ soil_temp_5_15 <- rast("data/SBIO4_Temperature_Seasonality_5_15cm.tif")
 # had an error with geodata package, said server was down for maintenance
 # https://files.isric.org/soilgrids/latest/data_aggregated/1000m/phh2o/
 
-soil_phh2o_0_5 <- rast("data/phh2o_0-5cm_mean_1000.tif")
+# soil pH data in case geodata package acts up:
+# soil_phh2o_0_5 <- rast("data/phh2o_0-5cm_mean_1000.tif")
+# soil_phh2o_5_15 <- rast("data/phh2o_5-15cm_mean_1000.tif")
 
-soil_phh2o_5_15 <- rast("data/phh2o_5-15cm_mean_1000.tif")
+soil_phh2o_0_5 <- soil_world(var = "phh2o", depth = 5, stat = "mean", 
+                             path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
+                             na.rm = TRUE)
 
-# soil_phh2o_0_5 <- soil_world(var = "phh2o", depth = 5, stat = "mean", 
-                             # path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
-                             # na.rm = TRUE)
-
-# soil_phh2o_5_15 <- soil_world(var = "phh2o", depth = 15, stat = "mean", 
-                             # path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
-                             # na.rm = TRUE)
+soil_phh2o_5_15 <- soil_world(var = "phh2o", depth = 15, stat = "mean", 
+                              path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
+                              na.rm = TRUE)
 
 
 # unified North American soil data
