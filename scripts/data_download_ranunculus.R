@@ -1,7 +1,7 @@
 # dir.create("data/")
 # dir.create("scripts/")
 library(tidyverse)
-library(geodata)
+library(geodata) # won't work when on AAFC VPN
 library(bcmaps)
 library(bcdata)
 library(terra)
@@ -15,7 +15,7 @@ library(CoordinateCleaner)
 ## Extent ##
 
 # read in the boundaries for British Columbia (BC)
-bc_extent <- bcmaps::bc_bbox(class = ("raster"), crs = "EPSG:4326")
+# bc_extent <- bcmaps::bc_bbox(class = ("raster"), crs = "EPSG:4326")
 
 bc_bound_sf <- bcmaps::bc_bound(ask = interactive, force = FALSE)
 
@@ -27,13 +27,13 @@ bc_bound <- terra::project(bc_bound, "EPSG:4326")
 
 # create a SpatExtent for BC based on the bc_extent object
 # cannot coerce Extent object to SpatRaster
-bc_spatextent <- ext(bc_extent)
+# bc_spatextent <- ext(bc_extent)
 
 # create a vector from the BC boundary
-bc_vect <- as.polygons(bc_spatextent, crs = "EPSG:4326")
+# bc_vect <- as.polygons(bc_spatextent, crs = "EPSG:4326")
 
 # now create a regular SpatRaster for bc_extent
-bc_extent_rast <- rast(bc_spatextent)
+# bc_extent_rast <- rast(bc_spatextent)
  
 
 ## Occurrence Data ##
