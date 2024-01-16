@@ -16,7 +16,7 @@ ran_occ_vect <- vect(ran_occ, geom = c("decimalLongitude", "decimalLatitude"),
                      crs = "EPSG:4326", keepgeom = FALSE)
 
 # crop the SpatVector to the extent of British Columbia
-ran_occ_bc <- crop(ran_occ_vect, bc_extent_rast)
+ran_occ_bc <- crop(ran_occ_vect, bc_bound)
 ran_occ_bc
 
 ran_occ_bc_sf <- st_as_sf(ran_occ_bc, 
@@ -36,8 +36,8 @@ soil_temp_5_15_bc <- terra::project(soil_temp_5_15_bc, "EPSG:4326",
                                     method = "bilinear")
 
 # crop pH SpatRaster to British Columbia extent
-soil_phh2o_0_5_bc <- crop(soil_phh2o_0_5, bc_extent_rast)
-soil_phh2o_5_15_bc <- crop(soil_phh2o_5_15, bc_extent_rast)
+soil_phh2o_0_5_bc <- crop(soil_phh2o_0_5, bc_bound)
+soil_phh2o_5_15_bc <- crop(soil_phh2o_5_15, bc_bound)
 
 # reproject soil pH SpatRasters to WGS84
 soil_phh2o_0_5_bc <- terra::project(soil_temp_0_5_bc, "EPSG:4326",
@@ -66,7 +66,7 @@ soil_phh2o_5_15_bc <- terra::project(soil_temp_5_15_bc, "EPSG:4326",
 # bc_bec <- terra::project(bc_bec, "EPSG:4326", method = "near")
 
 # crop BEC data to match BC extent?
-# bc_bec <- crop(bc_bec, bc_extent_rast)
+# bc_bec <- crop(bc_bec, bc_bound)
 
 # resample BEC data to match resolution of other rasters
 # bc_bec <- resample(bc_bec, soil_temp_0_5_bc)
@@ -106,9 +106,9 @@ prec_bc <- crop(prec_canada, bc_bound)
 # lndcvr_na_agg <- aggregate(lndcvr_na, fact = 15)
 
 # write aggregated landcover data to file for easier reuse
-# lndcvr-north-america_agg <-writeRaster(lndcvr_na_agg, 
-                                      # filename = "data/lndcvr-north-america_agg.tif", 
-                                      # overwrite = TRUE)
+# lndcvr_na_agg <-writeRaster(lndcvr_na_agg, 
+                                   # filename = "data/lndcvr-north-america_agg.tif", 
+                                   # overwrite = TRUE)
 
 # create SpatRaster of aggregated landcover data from new file
 # lndcvr_na_agg <- rast("data/lndcvr-north-america_agg.tif")
@@ -139,16 +139,62 @@ bc_bec <- mask(bc_bec, bc_bound)
 tavg_bc <- mask(tavg_bc, bc_bound)
 lndcvr_bc <- mask(lndcvr_bc, bc_bound)
 
-# set all NA values to -9999 (predictors cannot have NA values)
-elevation_bc[is.na(elevation_bc[])] <- -9999
-soil_temp_0_5_bc[is.na(soil_temp_0_5_bc[])] <- -9999
-soil_temp_5_15_bc[is.na(soil_temp_5_15_bc[])] <- -9999
-soil_phh2o_0_5_bc[is.na(soil_phh2o_5_15_bc[])] <- -9999
-soil_phh2o_5_15_bc[is.na(soil_phh2o_5_15_bc[])] <- -9999
-prec_bc[is.na(prec_bc[ , ])] <- -9999 # figure out how to apply to all layers
-bc_bec[is.na(bc_bec[])] <- -9999
-tavg_bc[is.na(tavg_bc[])] <- -9999 # figure out how to apply to all layers
-lndcvr_bc[is.na(lndcvr_bc[])] <- -9999
+# trim NA values from outside of BC boundary
+elevation_bc <- trim(elevation_bc, padding = 0, value = NA)
+soil_temp_0_5_bc <- trim(soil_temp_0_5_bc, padding = 0, value = NA)
+soil_temp_5_15_bc <- trim(soil_temp_5_15_bc)
+soil_phh2o_0_5_bc <- trim(soil_phh2o_0_5_bc, padding = 0, value = NA)
+soil_phh2o_5_15_bc <- trim(soil_phh2o_5_15_bc, padding = 0, value = NA)
+prec_bc <- trim(prec_bc, padding = 0, value = NA)
+bc_bec <- trim(bc_bec, padding = 0, value = NA)
+tavg_bc <- trim(tavg_bc, padding = 0, value = NA)
+lndcvr_bc <- trim(lndcvr_bc, padding = 0, value = NA)
+
+# set all remaining NA values to -9999 (predictors cannot have NA values)
+elevation_bc[is.na(elevation_bc)] <- -500
+soil_temp_0_5_bc[is.na(soil_temp_0_5_bc)] <- -100
+soil_temp_5_15_bc[is.na(soil_temp_5_15_bc)] <- -100
+soil_phh2o_0_5_bc[is.na(soil_phh2o_5_15_bc)] <- -10
+soil_phh2o_5_15_bc[is.na(soil_phh2o_5_15_bc)] <- -10
+bc_bec[is.na(bc_bec)] <- -1
+lndcvr_bc[is.na(lndcvr_bc)] <- -1
+
+# prec_bc:
+for(i in 1:12){
+  prec_bc[is.na(prec_bc[,,i])] <- -100
+}
+
+#tavg_bc
+for(i in 1:4){
+  tavg_bc[is.na(tavg_bc[,,i])] <- -100
+}
+
+# extents moved around a bit - need to crop to smallest extent (bc_bec or lndcvr_bc)
+elevation_bc <- crop(elevation_bc, bc_bec)
+soil_temp_0_5_bc <- crop(soil_temp_0_5_bc, bc_bec)
+soil_temp_5_15_bc <- crop(soil_temp_5_15_bc, bc_bec)
+soil_phh2o_0_5_bc <- crop(soil_phh2o_0_5_bc, bc_bec)
+soil_phh2o_5_15_bc <- crop(soil_phh2o_5_15_bc, bc_bec)
+prec_bc <- crop(prec_bc, bc_bec)
+tavg_bc <- crop(tavg_bc, bc_bec)
+lndcvr_bc <- crop(lndcvr_bc, bc_bec)
+
+
+# write rasters to file for faster computation
+elevation_bc <- writeRaster(elevation_bc, filename = "data/elevation_bc.tif")
+soil_temp_0_5_bc <- writeRaster(soil_temp_0_5_bc, 
+                                filename = "data/soil_temp_0_5_bc.tif")
+soil_temp_5_15_bc <- writeRaster(soil_temp_5_15_bc, 
+                               filename = "data/soil_temp_5_15_bc.tif")
+soil_phh2o_0_5_bc <- writeRaster(soil_phh2o_0_5_bc, 
+                                 filename = "data/soil_phh2o_0_5_bc.tif")
+soil_phh2o_5_15_bc <- writeRaster(soil_phh2o_5_15_bc,
+                                  filename = "data/soil_phh2o_5_15_bc.tif")
+prec_bc <- writeRaster(prec_bc, filename = "data/prec_bc.tif")
+bc_bec <- writeRaster(bc_bec, filename = "data/bc_bec.tif", overwrite = TRUE)
+tavg_bc <- writeRaster(tavg_bc, filename = "data/tavg_bc.tif")
+lndcvr_bc <- writeRaster(lndcvr_bc, filename = "data/lndcvr_bc.tif", overwrite = TRUE)
+
 
 ## Multilayer Raster ##
 
@@ -158,12 +204,12 @@ predictors_multirast <- rast(c(elevation_bc,
                                soil_temp_5_15_bc,
                                soil_phh2o_0_5_bc,
                                soil_phh2o_5_15_bc,
-                              # prec_bc,
+                               prec_bc,
                                bc_bec,
-                             #  tavg_bc,
+                               tavg_bc,
                                lndcvr_bc))
+predictors_multirast <- writeRaster(predictors_multirast, filename = "data/predictors_multirast.tif")
 
 
-
-
+                    
                     
