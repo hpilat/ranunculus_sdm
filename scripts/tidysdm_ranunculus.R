@@ -45,10 +45,17 @@ land_mask <- crop(land_mask, bc_bound)
 land_mask <- mask(land_mask, bc_bound)
 
 # use tidyterra package for plotting so ggplot can be used with terra rasters
+# original tidySDM code: (land_mask holds the worldclim data, I believe)
 ggplot()+
   geom_spatraster(data = land_mask, aes(fill = land_mask_1985)) +
   geom_sf(data = ran_occ_bc_sf) # sf object with coordinates
 
+# replace land_mask with DEM?
+# add subsequent predictor rasters as new layers with geom_spatraster?
+ggplot()+
+  geom_spatraster(data = elevation_bc, aes(fill = land_mask_1985)) +
+  geom_spatraster(data = prec_bc, aes(fill = land_mask_1985))+
+  
 
 ## Thinning Occurrences ##
 

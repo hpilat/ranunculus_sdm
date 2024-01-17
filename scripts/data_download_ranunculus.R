@@ -34,7 +34,28 @@ bc_bound <- terra::project(bc_bound, "EPSG:4326")
 
 # now create a regular SpatRaster for bc_extent
 # bc_extent_rast <- rast(bc_spatextent)
- 
+
+
+# read in administrative boundaries for Canada, USA, Mexico
+north_america_bound <- geodata::gadm(country = c("CAN", "USA", "MEX"), 
+                                     level = 0, 
+                                     path = "data/", 
+                                     version = "latest", 
+                                     resolution = 1)
+
+# create an extent object so we can crop from the West Coast
+north_america_ext <- ext(north_america_bound)
+
+# create an extent object so the admin boundaries can be cropped from 
+  # the 100th meridian
+general_extent <- ext(-140, -100, 25, 65)
+
+# first crop out the eastern portion
+west_north_america <- crop(north_america_bound, general_extent)
+
+# now crop out Hawai'i and ocean (I think that's what I did here?)
+west_na_ext <- crop(west_north_america, north_america_ext)
+
 
 ## Occurrence Data ##
 
