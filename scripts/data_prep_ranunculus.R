@@ -170,14 +170,14 @@ for(i in 1:4){
 }
 
 # extents moved around a bit - need to crop to smallest extent (bc_bec or lndcvr_bc)
-elevation_bc <- crop(elevation_bc, bc_bec)
-soil_temp_0_5_bc <- crop(soil_temp_0_5_bc, bc_bec)
-soil_temp_5_15_bc <- crop(soil_temp_5_15_bc, bc_bec)
-soil_phh2o_0_5_bc <- crop(soil_phh2o_0_5_bc, bc_bec)
-soil_phh2o_5_15_bc <- crop(soil_phh2o_5_15_bc, bc_bec)
-prec_bc <- crop(prec_bc, bc_bec)
-tavg_bc <- crop(tavg_bc, bc_bec)
-lndcvr_bc <- crop(lndcvr_bc, bc_bec)
+elevation_bc <- crop(elevation_bc, bc_bound)
+soil_temp_0_5_bc <- crop(soil_temp_0_5_bc, bc_bound)
+soil_temp_5_15_bc <- crop(soil_temp_5_15_bc, bc_bound)
+soil_phh2o_0_5_bc <- crop(soil_phh2o_0_5_bc, bc_bound)
+soil_phh2o_5_15_bc <- crop(soil_phh2o_5_15_bc, bc_bound)
+prec_bc <- crop(prec_bc, bc_bound)
+tavg_bc <- crop(tavg_bc, bc_bound)
+lndcvr_bc <- crop(lndcvr_bc, bc_bound)
 
 
 # write rasters to file for faster computation
@@ -199,6 +199,7 @@ lndcvr_bc <- writeRaster(lndcvr_bc, filename = "data/lndcvr_bc.tif", overwrite =
 ## Multilayer Raster ##
 
 # create a multilayer raster of the predictor variables
+# new error: says extents don't match
 predictors_multirast <- rast(c(elevation_bc,
                                soil_temp_0_5_bc, 
                                soil_temp_5_15_bc,
