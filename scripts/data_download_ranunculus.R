@@ -17,13 +17,13 @@ library(CoordinateCleaner)
 # read in the boundaries for British Columbia (BC)
 # bc_extent <- bcmaps::bc_bbox(class = ("raster"), crs = "EPSG:4326")
 
-bc_bound_sf <- bcmaps::bc_bound(ask = interactive, force = FALSE)
+# bc_bound_sf <- bcmaps::bc_bound(ask = interactive, force = FALSE)
 
 # create a SpatVector for the BC boundary
-bc_bound <- vect(bc_bound_sf)
+# bc_bound <- vect(bc_bound_sf)
 
 # reproject BC Boundary to WGS84
-bc_bound <- terra::project(bc_bound, "EPSG:4326")
+# bc_bound <- terra::project(bc_bound, "EPSG:4326")
 
 # create a SpatExtent for BC based on the bc_extent object
 # cannot coerce Extent object to SpatRaster
@@ -37,24 +37,31 @@ bc_bound <- terra::project(bc_bound, "EPSG:4326")
 
 
 # read in administrative boundaries for Canada, USA, Mexico
-north_america_bound <- geodata::gadm(country = c("CAN", "USA", "MEX"), 
-                                     level = 0, 
-                                     path = "data/", 
-                                     version = "latest", 
-                                     resolution = 1)
+# north_america_bound <- geodata::gadm(country = c("CAN", "USA", "MEX"), 
+                                    # level = 0, 
+                                    # path = "data/", 
+                                    # version = "latest", 
+                                    # resolution = 1)
 
 # create an extent object so we can crop from the West Coast
-north_america_ext <- ext(north_america_bound)
+# north_america_ext <- ext(north_america_bound)
 
 # create an extent object so the admin boundaries can be cropped from 
   # the 100th meridian
-general_extent <- ext(-140, -100, 25, 65)
+# general_extent <- ext(-140, -100, 25, 65)
 
 # first crop out the eastern portion
-west_north_america <- crop(north_america_bound, general_extent)
+# west_north_america <- crop(north_america_bound, general_extent)
 
 # now crop out Hawai'i and ocean (I think that's what I did here?)
-west_na_ext <- crop(west_north_america, north_america_ext)
+# west_na_ext <- crop(west_north_america, north_america_ext)
+
+
+
+## Spatial Extent ##
+na_bound <- read_sf("data/continental_divide_buffer_boundary.shp")
+na_bound <- vect(na_bound)
+na_extent <- ext(na_bound)
 
 
 ## Occurrence Data ##
@@ -96,15 +103,13 @@ ran_occ_download <- occ_download_get('0019946-231120084113126') %>%
 ## Predictor Data ##
 
 # read in BEC map from bcmaps
-bc_bec <- bcmaps::bec(ask = interactive(), force = FALSE)
+# bc_bec <- bcmaps::bec(ask = interactive(), force = FALSE)
 
-# elevation data for Canada
-elevation_canada <- geodata::elevation_30s(country = "CAN", 
-                                           path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
-                                           na.rm = TRUE)
+# elevation data for North America
+elevation_na <- rast("data/northamerica_elevation_cec_2023.tif")
 
 # read in landcover data for North America
-lndcvr_na <- rast("data/CAN_NALCMS_landcover_2020_30m.tif")
+lndcvr_na <- rast("data/NA_NALCMS_landcover_2020_30m.tif")
 
 # soil temperature data:
 soil_temp_0_5 <- rast("data/SBIO4_Temperature_Seasonality_0_5cm.tif")
@@ -118,11 +123,11 @@ soil_temp_5_15 <- rast("data/SBIO4_Temperature_Seasonality_5_15cm.tif")
 # soil_phh2o_0_5 <- rast("data/phh2o_0-5cm_mean_1000.tif")
 # soil_phh2o_5_15 <- rast("data/phh2o_5-15cm_mean_1000.tif")
 
-soil_phh2o_0_5 <- soil_world(var = "phh2o", depth = 5, stat = "mean", 
+soil_phh2o_0_5 <- geodata::soil_world(var = "phh2o", depth = 5, stat = "mean", 
                              path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
                              na.rm = TRUE)
 
-soil_phh2o_5_15 <- soil_world(var = "phh2o", depth = 15, stat = "mean", 
+soil_phh2o_5_15 <- geodata::soil_world(var = "phh2o", depth = 15, stat = "mean", 
                               path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
                               na.rm = TRUE)
 
@@ -137,18 +142,74 @@ soil_phh2o_5_15 <- soil_world(var = "phh2o", depth = 15, stat = "mean",
 
 # climate data, monthly averages from worldclim
 # average monthly temperature
-tavg_canada <- geodata::worldclim_country(country = "Canada", 
-                                          var = "tavg", 
-                                          path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
-                                          version = "2.1", 
-                                          na.rm = TRUE)
+# temp_avg_can <- geodata::worldclim_country(country = "CAN", 
+                                        #  var = "tavg", 
+                                        #  path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
+                                        #  version = "2.1", 
+                                        #  na.rm = TRUE)
+
+# temp_avg_usa <- geodata::worldclim_country(country = "USA", 
+                                        #   var = "tavg", 
+                                        #   path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
+                                        #   version = "2.1", 
+                                        #   na.rm = TRUE)
+
+# temp_avg_mex <- geodata::worldclim_country(country = "MEX", 
+                                        #  var = "tavg", 
+                                        #  path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
+                                        #  version = "2.1", 
+                                        #  na.rm = TRUE)
+
+# merge the temp_avg SpatRasters to create one for North America
+# temp_avg <- terra::merge(temp_avg_can, temp_avg_usa, first = TRUE, na.rm = TRUE)
+# temp_avg <- terra::merge(temp_avg, temp_avg_mex, first = TRUE, na.rm = TRUE)
+# temp_avg <- writeRaster(temp_avg, filename = "data/temp_avg_north_america.tif")
+temp_avg <- rast("data/temp_avg_north_america.tif")
+  # plotting temp_avg = whole world for some reason?
 
 # total precipitation
-prec_canada <- geodata::worldclim_country(country = "Canada", 
-                                          var = "prec", 
-                                          path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
-                                          version = "2.1", 
-                                          na.rm = TRUE)
+# precip_can <- geodata::worldclim_country(country = "CAN", 
+                                        #  var = "prec", 
+                                        #  path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
+                                        #  version = "2.1", 
+                                        #  na.rm = TRUE)
+
+# precip_usa <- geodata::worldclim_country(country = "USA", 
+                                        # var = "prec", 
+                                        # path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
+                                        # version = "2.1", 
+                                        # na.rm = TRUE)
+
+# precip_mex <- geodata::worldclim_country(country = "MEX", 
+                                        # var = "prec", 
+                                        # path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
+                                        # version = "2.1", 
+                                        # na.rm = TRUE)
+
+# merge the individual precip SpatRasters into one for North America
+# precip <- terra::merge(precip_can, precip_usa, first = TRUE, na.rm = TRUE)
+# precip <- terra::merge(precip, precip_mex, first = TRUE, na.rm = TRUE)
+# precip <- writeRaster(precip, filename = "data/total_precip_na.tif")
+precip <- rast("data/total_precip_na.tif")
+  # same as temp_avg, whole world plots
+
+# read in anthropogenic biome data
+anth_biome <- rast("data/anthromes_EqArea.tif")
+
+# read in protected areas data
+# IUCN categories:
+protect_area_IUCN <- shapefile("data/CEC_NA_2021_terrestrial_IUCN_categories.shp")
+protect_area_IUCN <- vect(protect_area_IUCN)
+protect_area_IUCN <- rast(protect_area_IUCN)
+# OECMs - what does this mean?
+protect_area_OECM <- system.file()
+protect_area_OECM <- vect(protect_area_OECM)
+protect_area_OECM <- rast(protect_area_OECM)
+
+
+
+
+
 
 # monthly snowpack, NetCDF file requires special software to download?
 # snowpack_canada <- rast("data/")
