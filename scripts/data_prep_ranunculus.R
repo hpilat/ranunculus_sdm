@@ -15,92 +15,67 @@ ran_occ <- dplyr::select(ran_occ_download, gbifID,
 ran_occ_vect <- vect(ran_occ, geom = c("decimalLongitude", "decimalLatitude"), 
                      crs = "EPSG:4326", keepgeom = FALSE)
 
-# crop the SpatVector to the extent of British Columbia
-ran_occ_bc <- crop(ran_occ_vect, bc_bound)
-ran_occ_bc
+# crop the SpatVector to the extent of the study area
+ran_occ <- crop(ran_occ_vect, na_bound)
+ran_occ
 
-ran_occ_bc_sf <- st_as_sf(ran_occ_bc, 
-                          coords = c("decimalLongitude", "decimalLatitude"))
-ran_occ_bc_sf
+# ran_occ_bc_sf <- st_as_sf(ran_occ_bc, 
+                          # coords = c("decimalLongitude", "decimalLatitude"))
+# ran_occ_bc_sf
 
 ## Predictor Data ##
 
-# crop soil temperature SpatRaster to British Columbia extent
-soil_temp_0_5_bc <- crop(soil_temp_0_5, bc_bound)
-soil_temp_5_15_bc <- crop(soil_temp_5_15, bc_bound)
+# crop soil temperature SpatRaster to North American extent
+soil_temp_0_5 <- crop(soil_temp_0_5, na_bound)
+soil_temp_5_15 <- crop(soil_temp_5_15, na_bound)
 
 # reproject soil temperature SpatRasters to WGS84
-soil_temp_0_5_bc <- terra::project(soil_temp_0_5_bc, "EPSG:4326",
+soil_temp_0_5 <- terra::project(soil_temp_0_5, "EPSG:4326",
                                    method = "bilinear")
-soil_temp_5_15_bc <- terra::project(soil_temp_5_15_bc, "EPSG:4326",
+soil_temp_5_15 <- terra::project(soil_temp_5_15, "EPSG:4326",
                                     method = "bilinear")
-
-# crop pH SpatRaster to British Columbia extent
-soil_phh2o_0_5_bc <- crop(soil_phh2o_0_5, bc_bound)
-soil_phh2o_5_15_bc <- crop(soil_phh2o_5_15, bc_bound)
 
 # reproject soil pH SpatRasters to WGS84
-soil_phh2o_0_5_bc <- terra::project(soil_temp_0_5_bc, "EPSG:4326",
-                                   method = "bilinear")
-soil_phh2o_5_15_bc <- terra::project(soil_temp_5_15_bc, "EPSG:4326",
-                                    method = "bilinear")
-
-# create a SpatRaster of the BEC data
-# start by turning bc_bec into a SpatVector object
-# bc_bec_vec <- vect(bc_bec)
-
-# calculate number of rows (Y direction) and columns (X) for raster 
-# using 1km resolution (1000)
-# numcols <- as.vector(ceiling((st_bbox(bc_bec)$xmax - st_bbox(bc_bec)$xmin)/1000))
-# numrows <- as.vector(ceiling((st_bbox(bc_bec)$ymax - st_bbox(bc_bec)$ymin)/1000))
-
-# create a temporary raster with number of columns and rows from above
-# bec_temprast <- rast(bc_bec_vec, ncols = numcols, nrows = numrows)
-
-# create raster from SpatVector and structure of temporary raster
-# select "ZONE" layer from BEC data
-# bc_bec <- rasterize(bc_bec_vec, bec_temprast, "ZONE")
-# plot(bc_bec)
-
-# reproject BEC data to WGS84
-# bc_bec <- terra::project(bc_bec, "EPSG:4326", method = "near")
-
-# crop BEC data to match BC extent?
-# bc_bec <- crop(bc_bec, bc_bound)
-
-# resample BEC data to match resolution of other rasters
-# bc_bec <- resample(bc_bec, soil_temp_0_5_bc)
-
-# write new BEC data to raster for easier future use
-# bc_bec <- writeRaster(bc_bec, "data/bc_bec.tif", overwrite = TRUE)
-
-# import bc_bec data from new file
-bc_bec <- rast("data/bc_bec.tif")
-
-# crop elevation data to British Columbia extent
-elevation_bc <- crop(elevation_canada, bc_bound)
+soil_phh2o_0_5 <- terra::project(soil_temp_0_5, "EPSG:4326",
+                                 method = "bilinear")
+soil_phh2o_5_15 <- terra::project(soil_temp_5_15, "EPSG:4326",
+                                  method = "bilinear")
+# crop pH SpatRaster to North American extent
+soil_phh2o_0_5 <- crop(soil_phh2o_0_5, na_bound)
+soil_phh2o_5_15 <- crop(soil_phh2o_5_15, na_bound)
 
 # reproject elevation data to WGS84
-elevation_bc <- terra::project(elevation_bc, "EPSG:4326", method = "bilinear")
+# elevation_na <- terra::project(elevation_na, "EPSG:4326", method = "bilinear")
+
+# resample elevation_na to change resolution
+# elevation_na <- terra::resample(elevation_na, soil_temp_0_5)
+
+# crop elevation data to British Columbia extent
+# elevation_na <- crop(elevation_na, na_bound)
+
+# write elevation_na to file for easier reuse
+# elevation_na <- writeRaster(elevation_na, filename = "data/elevation_na.tif")
+
+# read in elevation data
+elevation_na <- rast("data/elevation_na.tif")
 
 # select March to June for average temperatures (relevant to growing season)
-tavg_canada_mar_jun <- tavg_canada[[3:6]]
+tavg_mar_jun <- temp_avg_global[[3:6]]
 
-tavg_canada_mar_jun <- project(tavg_canada_mar_jun, "EPSG:4326", method = "bilinear")
+# reproject temp data to WGS84
+tavg_mar_jun <- project(tavg_mar_jun, "EPSG:4326", method = "bilinear")
 
-# OR: 
-# aggregate tavg_canada raster so it can be cropped?
-# by a factor of 3 to go from 5040 columns to closer to 1404 (size of bc_extent_rast)
-# agg_tavg_canada <- aggregate(tavg_canada, fact = 3)
-# tavg_bc <- crop(tavg_canada, bc_extent_rast)
-# resample average monthly temperature data
-# tavg_bc <- resample(agg_tavg_canada, soil_temp_0_5_bc)
+# resample temperature data to change resolution
+tavg_mar_jun <- resample(tavg_mar_jun, soil_temp_0_5)
 
-# crop average monthly temperature data to British Columbia extent
-tavg_bc <- crop(tavg_canada_mar_jun, bc_bound)
+# crop temperature data to match North America extent
+tavg_mar_jun <- crop(tavg_mar_jun, na_bound)
+
+# resample precipitation data to change resolution
+precip_global <- resample(precip_global, soil_temp_0_5)
 
 # crop precipitation data to British Columbia extent
-prec_bc <- crop(prec_canada, bc_bound)
+precip <- crop(precip_global, na_bound)
 
 # aggregate landcover data so it can be reprojected and cropped
 # lndcvr_na_agg <- aggregate(lndcvr_na, fact = 15)
@@ -117,56 +92,101 @@ prec_bc <- crop(prec_canada, bc_bound)
 # lndcvr_na_agg <- terra::project(lndcvr_na_agg, "EPSG:4326", method = "near")
 
 # crop landcover North America data to BC's extent
-# lndcvr_bc <- crop(lndcvr_na_agg, bc_bound)
+# lndcvr_na <- crop(lndcvr_na_agg, na_bound)
 
 # resample landcover BC data to change resolution
-# lndcvr_bc <- resample(lndcvr_bc, soil_temp_0_5_bc)
+# lndcvr_na <- resample(lndcvr_na, soil_temp_0_5)
 
-# create file of BC landcover data for easier/faster re-use
-# lndcvr_bc <- writeRaster(lndcvr_bc, "data/lndcvr_bc.tif", overwrite = TRUE)
+# create file of processed landcover data for faster re-use
+# lndcvr_na <- writeRaster(lndcvr_na, "data/lndcvr_na.tif", overwrite = TRUE)
 
-# import landcover BC data from new file created above
-lndcvr_bc <- rast("data/lndcvr_bc.tif")
+# import processed landcover data from new file created above
+lndcvr_na <- rast("data/lndcvr_na.tif")
 
-# mask all layers so values outside of bc_bound are NA
-elevation_bc <- mask(elevation_bc, bc_bound)
-soil_temp_0_5_bc <- mask(soil_temp_0_5_bc, bc_bound)
-soil_temp_5_15_bc <- mask(soil_temp_5_15_bc, bc_bound)
-soil_phh2o_0_5_bc <- mask(soil_phh2o_0_5_bc, bc_bound)
-soil_phh2o_5_15_bc <- mask(soil_phh2o_5_15_bc, bc_bound)
-prec_bc <- mask(prec_bc, bc_bound)
-bc_bec <- mask(bc_bec, bc_bound)
-tavg_bc <- mask(tavg_bc, bc_bound)
-lndcvr_bc <- mask(lndcvr_bc, bc_bound)
+# reproject anthropogenic biomes data to WGS84
+anth_biome <- project(anth_biome, "EPSG:4326")
 
-# trim NA values from outside of BC boundary
-elevation_bc <- trim(elevation_bc, padding = 0, value = NA)
-soil_temp_0_5_bc <- trim(soil_temp_0_5_bc, padding = 0, value = NA)
-soil_temp_5_15_bc <- trim(soil_temp_5_15_bc)
-soil_phh2o_0_5_bc <- trim(soil_phh2o_0_5_bc, padding = 0, value = NA)
-soil_phh2o_5_15_bc <- trim(soil_phh2o_5_15_bc, padding = 0, value = NA)
-prec_bc <- trim(prec_bc, padding = 0, value = NA)
-bc_bec <- trim(bc_bec, padding = 0, value = NA)
-tavg_bc <- trim(tavg_bc, padding = 0, value = NA)
-lndcvr_bc <- trim(lndcvr_bc, padding = 0, value = NA)
+# resample anth_biome to change resolution
+anth_biome <- resample(anth_biome, soil_temp_0_5)
+
+# note: watersheds raster has no values
+
+# reproject watersheds data to WGS84
+watersheds <- project(watersheds, "EPSG:4326")
+
+# resample watersheds data to change resolution
+watersheds <- resample(watersheds, soil_temp_0_5)
+
+# crop watersheds data to study extent
+watersheds <- crop(watersheds, na_bound)
+
+# create a multilayer raster of the predictor variables
+predictors_multirast <- rast(c(anth_biome, 
+                               elevation_na,
+                               lndcvr_na, 
+                               precip, 
+                               soil_phh2o_0_5,
+                               soil_phh2o_5_15,
+                               soil_temp_0_5, 
+                               soil_temp_5_15,
+                               tavg_mar_jun, 
+                              # watersheds)) # needs some work
+
+# multiraster doesn't hold any values - likely need to remove NA values from 
+    # individual predictor rasters
+
+
+# mask all layers so values outside of na_bound are NA
+
+# can also try: mask(r, !is.na(r))
+
+anth_biome <- mask(anth_biome, na_bound)
+elevation_na <- mask(elevation_na, na_bound)
+lndcvr_na <- mask(lndcvr_na, na_bound)
+precip <- mask(precip, na_bound)
+soil_phh2o_0_5 <- mask(soil_phh2o_0_5, na_bound)
+soil_phh2o_5_15 <- mask(soil_phh2o_5_15, na_bound)
+soil_temp_0_5 <- mask(soil_temp_0_5, na_bound)
+soil_temp_5_15 <- mask(soil_temp_5_15, na_bound)
+tavg_mar_jun <- mask(tavg_mar_jun, na_bound)
+watersheds <- mask(watersheds, na_bound)
+
+# trim NA values from outside of boundary
+
+#### this might be where extents are shifting ####
+
+# anth_biome <- trim(anth_biome, padding = 0, value = NA)
+# elevation_na <- trim(elevation_na, padding = 0, value = NA)
+# lndcvr_na <- trim(lndcvr_na, padding = 0, value = NA)
+# precip <- trim(precip, padding = 0, value = NA)
+# soil_phh2o_0_5 <- trim(soil_phh2o_0_5, padding = 0, value = NA)
+# soil_phh2o_5_15 <- trim(soil_phh2o_5_15, padding = 0, value = NA)
+# soil_temp_0_5 <- trim(soil_temp_0_5, padding = 0, value = NA)
+# soil_temp_5_15 <- trim(soil_temp_5_15, padding = 0, value = NA)
+# tavg_mar_jun <- trim(tavg_mar_jun, padding = 0, value = NA)
+
 
 # set all remaining NA values to -9999 (predictors cannot have NA values)
-elevation_bc[is.na(elevation_bc)] <- -500
-soil_temp_0_5_bc[is.na(soil_temp_0_5_bc)] <- -100
-soil_temp_5_15_bc[is.na(soil_temp_5_15_bc)] <- -100
-soil_phh2o_0_5_bc[is.na(soil_phh2o_5_15_bc)] <- -10
-soil_phh2o_5_15_bc[is.na(soil_phh2o_5_15_bc)] <- -10
-bc_bec[is.na(bc_bec)] <- -1
-lndcvr_bc[is.na(lndcvr_bc)] <- -1
+anth_biome[is.na(anth_biome)] <- -10
+elevation_na[is.na(elevation_na)] <- -500
+lndcvr_na[is.na(lndcvr_na)] <- -10
+precip[is.na(precip)] <- -10
+soil_phh2o_0_5[is.na(soil_phh2o_5_15)] <- -10
+soil_phh2o_5_15[is.na(soil_phh2o_5_15)] <- -10
+soil_temp_0_5[is.na(soil_temp_0_5)] <- -100
+soil_temp_5_15[is.na(soil_temp_5_15)] <- -100
+tavg_mar_jun[is.na(tavg_mar_jun)] <- -200
 
-# prec_bc:
+# since there are multiple layers in precip and tavg_mar_jun,
+  # may need to use below code:
+# precip:
 for(i in 1:12){
-  prec_bc[is.na(prec_bc[,,i])] <- -100
+  precip[is.na(precip[,,i])] <- -10
 }
 
-#tavg_bc
+#tavg_mar_jun
 for(i in 1:4){
-  tavg_bc[is.na(tavg_bc[,,i])] <- -100
+  tavg_mar_jun[is.na(tavg_mar_jun[,,i])] <- -200
 }
 
 # extents moved around a bit - need to crop to smallest extent (bc_bec or lndcvr_bc)
@@ -200,15 +220,15 @@ lndcvr_bc <- writeRaster(lndcvr_bc, filename = "data/lndcvr_bc.tif", overwrite =
 
 # create a multilayer raster of the predictor variables
 # new error: says extents don't match
-predictors_multirast <- rast(c(elevation_bc,
-                               soil_temp_0_5_bc, 
-                               soil_temp_5_15_bc,
-                               soil_phh2o_0_5_bc,
-                               soil_phh2o_5_15_bc,
-                               prec_bc,
-                               bc_bec,
-                               tavg_bc,
-                               lndcvr_bc))
+predictors_multirast <- rast(c(elevation_na,
+                               soil_temp_0_5, 
+                               soil_temp_5_15,
+                               soil_phh2o_0_5,
+                               soil_phh2o_5_15,
+                               precip,
+                               anth_biome,
+                               tavg_mar_jun,
+                               lndcvr_na))
 predictors_multirast <- writeRaster(predictors_multirast, filename = "data/predictors_multirast.tif")
 
 

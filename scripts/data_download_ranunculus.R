@@ -14,51 +14,11 @@ library(CoordinateCleaner)
 
 ## Extent ##
 
-# read in the boundaries for British Columbia (BC)
-# bc_extent <- bcmaps::bc_bbox(class = ("raster"), crs = "EPSG:4326")
-
-# bc_bound_sf <- bcmaps::bc_bound(ask = interactive, force = FALSE)
-
-# create a SpatVector for the BC boundary
-# bc_bound <- vect(bc_bound_sf)
-
-# reproject BC Boundary to WGS84
-# bc_bound <- terra::project(bc_bound, "EPSG:4326")
-
-# create a SpatExtent for BC based on the bc_extent object
-# cannot coerce Extent object to SpatRaster
-# bc_spatextent <- ext(bc_extent)
-
-# create a vector from the BC boundary
-# bc_vect <- as.polygons(bc_spatextent, crs = "EPSG:4326")
-
-# now create a regular SpatRaster for bc_extent
-# bc_extent_rast <- rast(bc_spatextent)
-
-
-# read in administrative boundaries for Canada, USA, Mexico
-# north_america_bound <- geodata::gadm(country = c("CAN", "USA", "MEX"), 
-                                    # level = 0, 
-                                    # path = "data/", 
-                                    # version = "latest", 
-                                    # resolution = 1)
-
-# create an extent object so we can crop from the West Coast
-# north_america_ext <- ext(north_america_bound)
-
-# create an extent object so the admin boundaries can be cropped from 
-  # the 100th meridian
-# general_extent <- ext(-140, -100, 25, 65)
-
-# first crop out the eastern portion
-# west_north_america <- crop(north_america_bound, general_extent)
-
-# now crop out Hawai'i and ocean (I think that's what I did here?)
-# west_na_ext <- crop(west_north_america, north_america_ext)
-
 
 
 ## Spatial Extent ##
+
+
 na_bound <- read_sf("data/continental_divide_buffer_boundary.shp")
 na_bound <- vect(na_bound)
 na_extent <- ext(na_bound)
@@ -66,44 +26,44 @@ na_extent <- ext(na_bound)
 
 ## Occurrence Data ##
 
+
 # set up GBIF credentials
 # install.packages("usethis")
 # usethis::edit_r_environ()
 
 # download occurrence data for Ranunculus glaberrimus
+# within North America, between 1950-2024
 rgbif::occ_download(
   pred("hasGeospatialIssue", FALSE), 
-  pred("hasCoordinate", TRUE), 
-  pred("basisOfRecord", "HUMAN_OBSERVATION"),
-  pred("country", "CA"),
+  pred("hasCoordinate", TRUE),
+  pred("continent", "north_america"),
+  pred("year", "1940,2024"),
   pred("taxonKey", 3033299), 
   format = "SIMPLE_CSV")
 
 # to check status of download:
-occ_download_wait('0019946-231120084113126')
+occ_download_wait('0067361-231120084113126')
 
 # to access download when it's finished
-ran_occ_download <- occ_download_get('0019946-231120084113126') %>%
+ran_occ_download <- occ_download_get('0067361-231120084113126') %>%
   occ_download_import()
 
 # Download Info:
 # Username: hpilat
 # E-mail: hannahepilat@gmail.com
 # Format: SIMPLE_CSV
-# Download key: 0019946-231120084113126
-# Created: 2023-12-05T18:28:14.357+00:00
+# Download key: 0067361-231120084113126
+# Created: 2024-01-21T21:44:46.652+00:00
 # Citation Info:  
- # Please always cite the download DOI when using this data.
+#  Please always cite the download DOI when using this data.
 # https://www.gbif.org/citation-guidelines
-# DOI: 10.15468/dl.cwqmqu
+# DOI: 10.15468/dl.3f98w4
 # Citation:
- #  GBIF Occurrence Download https://doi.org/10.15468/dl.cwqmqu Accessed from R 
-    # via rgbif (https://github.com/ropensci/rgbif) on 2023-12-05
+#  GBIF Occurrence Download https://doi.org/10.15468/dl.3f98w4 Accessed from R via rgbif (https://github.com/ropensci/rgbif) on 2024-01-21
+
 
 ## Predictor Data ##
 
-# read in BEC map from bcmaps
-# bc_bec <- bcmaps::bec(ask = interactive(), force = FALSE)
 
 # elevation data for North America
 elevation_na <- rast("data/northamerica_elevation_cec_2023.tif")
@@ -112,12 +72,8 @@ elevation_na <- rast("data/northamerica_elevation_cec_2023.tif")
 lndcvr_na <- rast("data/NA_NALCMS_landcover_2020_30m.tif")
 
 # soil temperature data:
-soil_temp_0_5 <- rast("data/SBIO4_Temperature_Seasonality_0_5cm.tif")
-soil_temp_5_15 <- rast("data/SBIO4_Temperature_Seasonality_5_15cm.tif")
-
-# world soil pH data: 
-# had an error with geodata package, said server was down for maintenance
-# https://files.isric.org/soilgrids/latest/data_aggregated/1000m/phh2o/
+soil_temp_0_5 <- rast("data/SBIO4_0_5cm_Temperature_Seasonality.tif")
+soil_temp_5_15 <- rast("data/SBIO4_5_15cm_Temperature_Seasonality.tif")
 
 # soil pH data in case geodata package acts up:
 # soil_phh2o_0_5 <- rast("data/phh2o_0-5cm_mean_1000.tif")
@@ -132,69 +88,27 @@ soil_phh2o_5_15 <- geodata::soil_world(var = "phh2o", depth = 15, stat = "mean",
                               na.rm = TRUE)
 
 
-# unified North American soil data
-# download.file("https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1242", 
-              # paste("C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data\\",
-                   # "unified_north_american_soil.tif", sep = ""), mode = "wb")
+# import global WorldClim average temperature
+temp_avg_global <- geodata::worldclim_global(var = "tavg", 
+                                             res = "2.5", 
+                                             path = "data/",
+                                             version = "2.1")
 
-# error with file type?
-# unified_soil <- rast("data/unified_north_american_soil.tif")
-
-# climate data, monthly averages from worldclim
-# average monthly temperature
-# temp_avg_can <- geodata::worldclim_country(country = "CAN", 
-                                        #  var = "tavg", 
-                                        #  path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
-                                        #  version = "2.1", 
-                                        #  na.rm = TRUE)
-
-# temp_avg_usa <- geodata::worldclim_country(country = "USA", 
-                                        #   var = "tavg", 
-                                        #   path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
-                                        #   version = "2.1", 
-                                        #   na.rm = TRUE)
-
-# temp_avg_mex <- geodata::worldclim_country(country = "MEX", 
-                                        #  var = "tavg", 
-                                        #  path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
-                                        #  version = "2.1", 
-                                        #  na.rm = TRUE)
-
-# merge the temp_avg SpatRasters to create one for North America
-# temp_avg <- terra::merge(temp_avg_can, temp_avg_usa, first = TRUE, na.rm = TRUE)
-# temp_avg <- terra::merge(temp_avg, temp_avg_mex, first = TRUE, na.rm = TRUE)
-# temp_avg <- writeRaster(temp_avg, filename = "data/temp_avg_north_america.tif")
-temp_avg <- rast("data/temp_avg_north_america.tif")
-  # plotting temp_avg = whole world for some reason?
-
-# total precipitation
-# precip_can <- geodata::worldclim_country(country = "CAN", 
-                                        #  var = "prec", 
-                                        #  path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
-                                        #  version = "2.1", 
-                                        #  na.rm = TRUE)
-
-# precip_usa <- geodata::worldclim_country(country = "USA", 
-                                        # var = "prec", 
-                                        # path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
-                                        # version = "2.1", 
-                                        # na.rm = TRUE)
-
-# precip_mex <- geodata::worldclim_country(country = "MEX", 
-                                        # var = "prec", 
-                                        # path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
-                                        # version = "2.1", 
-                                        # na.rm = TRUE)
-
-# merge the individual precip SpatRasters into one for North America
-# precip <- terra::merge(precip_can, precip_usa, first = TRUE, na.rm = TRUE)
-# precip <- terra::merge(precip, precip_mex, first = TRUE, na.rm = TRUE)
-# precip <- writeRaster(precip, filename = "data/total_precip_na.tif")
-precip <- rast("data/total_precip_na.tif")
-  # same as temp_avg, whole world plots
+# import global WorldClim precipitation data
+precip_global <- geodata::worldclim_global(var = "prec", 
+                                           res = "2.5", 
+                                           path = "data/", 
+                                           version = "2.1")
 
 # read in anthropogenic biome data
 anth_biome <- rast("data/anthromes_EqArea.tif")
+
+# read in watersheds data
+watersheds <- read_sf("data/watersheds_shapefile/Watersheds_Shapefile/NA_Watersheds/data/watershed_p_v2.shp")
+watersheds <- vect(watersheds)
+
+#### raster needs some work - all NaN values ####
+watersheds <- rast(watersheds)
 
 # read in protected areas data
 # IUCN categories:
@@ -210,9 +124,16 @@ protect_area_OECM <- rast(protect_area_OECM)
 
 
 
-
 # monthly snowpack, NetCDF file requires special software to download?
 # snowpack_canada <- rast("data/")
+
+# unified North American soil data
+# download.file("https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1242", 
+# paste("C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data\\",
+# "unified_north_american_soil.tif", sep = ""), mode = "wb")
+
+# error with file type?
+# unified_soil <- rast("data/unified_north_american_soil.tif")
 
 # future climate predictions Shared Socioeconomic Pathway 126 (no climate policy?)
 cmip6_2021_2040_126 <- geodata::cmip6_tile(lon, lat, model, ssp = "126", time = "2021-2040", 
