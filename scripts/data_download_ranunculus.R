@@ -14,7 +14,7 @@ library(CoordinateCleaner)
 
 ## Extent ##
 
-
+# new geographic extent created in continental_divide.Rmd
 
 ## Spatial Extent ##
 
@@ -112,15 +112,13 @@ watersheds <- rast(watersheds)
 
 # read in protected areas data
 # IUCN categories:
-protect_area_IUCN <- shapefile("data/CEC_NA_2021_terrestrial_IUCN_categories.shp")
+protect_area_IUCN <- read_sf("data/CEC_NA_2021_terrestrial_IUCN_categories.shp")
 protect_area_IUCN <- vect(protect_area_IUCN)
 protect_area_IUCN <- rast(protect_area_IUCN)
 # OECMs - what does this mean?
-protect_area_OECM <- system.file()
+protect_area_OECM <- read_sf("data/CEC_NA_2021_terrestrial_OECMs.shp")
 protect_area_OECM <- vect(protect_area_OECM)
 protect_area_OECM <- rast(protect_area_OECM)
-
-
 
 
 

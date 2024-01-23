@@ -60,22 +60,34 @@ soil_phh2o_5_15 <- crop(soil_phh2o_5_15, na_bound)
 elevation_na <- rast("data/elevation_na.tif")
 
 # select March to June for average temperatures (relevant to growing season)
-tavg_mar_jun <- temp_avg_global[[3:6]]
+# tavg_mar_jun <- temp_avg_global[[3:6]]
 
 # reproject temp data to WGS84
-tavg_mar_jun <- project(tavg_mar_jun, "EPSG:4326", method = "bilinear")
+# tavg_mar_jun <- project(tavg_mar_jun, "EPSG:4326", method = "bilinear")
 
 # resample temperature data to change resolution
-tavg_mar_jun <- resample(tavg_mar_jun, soil_temp_0_5)
+# tavg_mar_jun <- resample(tavg_mar_jun, soil_temp_0_5)
 
 # crop temperature data to match North America extent
-tavg_mar_jun <- crop(tavg_mar_jun, na_bound)
+# tavg_mar_jun <- crop(tavg_mar_jun, na_bound)
+
+# write temperature data to file for faster future computation
+# tavg_mar_jun <- writeRaster(tavg_mar_jun, filename = "data/tavg_mar_jun.tif")
+
+# read in temperature data
+tavg_mar_jun <- rast("data/tavg_mar_jun.tif")
 
 # resample precipitation data to change resolution
-precip_global <- resample(precip_global, soil_temp_0_5)
+# precip_global <- resample(precip_global, soil_temp_0_5)
 
 # crop precipitation data to British Columbia extent
-precip <- crop(precip_global, na_bound)
+# precip <- crop(precip_global, na_bound)
+
+# write precipitation data to file for faster future computation
+# precip <- writeRaster(precip, filename = "data/precipitation.tif")
+
+# read in precipitation data
+precip <- rast("data/precipitation.tif")
 
 # aggregate landcover data so it can be reprojected and cropped
 # lndcvr_na_agg <- aggregate(lndcvr_na, fact = 15)
@@ -108,6 +120,14 @@ anth_biome <- project(anth_biome, "EPSG:4326")
 
 # resample anth_biome to change resolution
 anth_biome <- resample(anth_biome, soil_temp_0_5)
+
+
+
+#### code below this point doesn't really work ####
+  #### it runs but doesn't produce what I need, which is rasters with no NA values, 
+       #### but matching extents so they can be combined in a multiraster ####
+
+
 
 # note: watersheds raster has no values
 
@@ -166,7 +186,9 @@ watersheds <- mask(watersheds, na_bound)
 # tavg_mar_jun <- trim(tavg_mar_jun, padding = 0, value = NA)
 
 
-# set all remaining NA values to -9999 (predictors cannot have NA values)
+# set all remaining NA values to -9999? (predictors cannot have NA values)
+# used different values as the rasters are continuous and the colour scale gets
+  # messed right up with -9999 (skewed heavily toward -9999)
 anth_biome[is.na(anth_biome)] <- -10
 elevation_na[is.na(elevation_na)] <- -500
 lndcvr_na[is.na(lndcvr_na)] <- -10
