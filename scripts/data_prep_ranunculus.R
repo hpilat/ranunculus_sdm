@@ -19,9 +19,9 @@ ran_occ_vect <- vect(ran_occ, geom = c("decimalLongitude", "decimalLatitude"),
 ran_occ <- crop(ran_occ_vect, na_bound)
 ran_occ
 
-# ran_occ_bc_sf <- st_as_sf(ran_occ_bc, 
-                          # coords = c("decimalLongitude", "decimalLatitude"))
-# ran_occ_bc_sf
+ran_occ_sf <- st_as_sf(ran_occ, 
+                       coords = c("decimalLongitude", "decimalLatitude"))
+ran_occ_sf
 
 ## Predictor Data ##
 
@@ -36,9 +36,9 @@ soil_temp_5_15 <- terra::project(soil_temp_5_15, "EPSG:4326",
                                     method = "bilinear")
 
 # reproject soil pH SpatRasters to WGS84
-soil_phh2o_0_5 <- terra::project(soil_temp_0_5, "EPSG:4326",
+soil_phh2o_0_5 <- terra::project(soil_phh2o_0_5, "EPSG:4326",
                                  method = "bilinear")
-soil_phh2o_5_15 <- terra::project(soil_temp_5_15, "EPSG:4326",
+soil_phh2o_5_15 <- terra::project(soil_phh2o_5_15, "EPSG:4326",
                                   method = "bilinear")
 # crop pH SpatRaster to North American extent
 soil_phh2o_0_5 <- crop(soil_phh2o_0_5, na_bound)

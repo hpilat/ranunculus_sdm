@@ -45,8 +45,10 @@ rgbif::occ_download(
 occ_download_wait('0067361-231120084113126')
 
 # to access download when it's finished
-ran_occ_download <- occ_download_get('0067361-231120084113126') %>%
-  occ_download_import()
+ran_occ_download <- occ_download_get(key = '0067361-231120084113126', 
+                                     path = "data/") %>%
+  occ_download_import(key = '0067361-231120084113126', 
+                      path = "data/")
 
 # Download Info:
 # Username: hpilat

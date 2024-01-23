@@ -11,20 +11,20 @@ library(overlapping)
 
 # read in Ranunculus glaberrimus presence dataframe, 
   # dataframe with ID, latitude, and longitude columns
-ran_occ_bc_sf
+ran_occ_download
 
 # plot the presences on a map to visualize them
 # cast coordinates into an sf object and set its CRS to WGS84
-ran_occ <- st_as_sf(ran_occ, coords = c("decimalLongitude", "decimalLatitude"))
+ran_occ_sf <- st_as_sf(ran_occ, coords = c("decimalLongitude", "decimalLatitude"))
 # set CRS to WGS84
-st_crs(ran_occ) <- 4326
+st_crs(ran_occ_sf) <- 4326
 
 # crop the multiraster with predictors to the extent of interest
 # not working, multiraster has no values
-# predictors_multirast <- crop(predictors_multirast, bc_bound)
+# predictors_multirast <- crop(predictors_multirast, na_bound)
 
 # mask the multiraster to the extent
-# predictors_mask <- mask(predictors_multirast, bc_bound)
+# predictors_mask <- mask(predictors_multirast, na_bound)
 
 # plot species occurrences directly on the raster used to extract climatic variables
 # get land mask for available datasets, use that as background for occurrences
@@ -39,22 +39,33 @@ worldclim <- pastclim::download_dataset(dataset = "WorldClim_2.1_10m",
 land_mask <- 
   pastclim::get_land_mask(time_ce = 1985, dataset = "WorldClim_2.1_10m")
 
-# crop the extent of the land mask to match British Columbia's extent
-land_mask <- crop(land_mask, bc_bound)
+# crop the extent of the land mask to match our study's extent
+land_mask <- crop(land_mask, na_bound)
 # mask to the polygon
-land_mask <- mask(land_mask, bc_bound)
+land_mask <- mask(land_mask, na_bound)
 
 # use tidyterra package for plotting so ggplot can be used with terra rasters
-# original tidySDM code: (land_mask holds the worldclim data, I believe)
 ggplot()+
   geom_spatraster(data = land_mask, aes(fill = land_mask_1985)) +
-  geom_sf(data = ran_occ_bc_sf) # sf object with coordinates
+  geom_sf(data = ran_occ_sf) # sf object with coordinates
 
 # replace land_mask with DEM?
 # add subsequent predictor rasters as new layers with geom_spatraster?
 ggplot()+
-  geom_spatraster(data = elevation_bc, aes(fill = land_mask_1985)) +
-  geom_spatraster(data = prec_bc, aes(fill = land_mask_1985))+
+  geom_spatraster(data = land_mask, aes(fill = land_mask_1985)) +
+  geom_spatraster(data = anth_biome, aes(fill = anthromes_EqArea)) +
+  geom_spatraster(data = elevation_na, aes(fill = northamerica_elevation_cec_2023)) +
+  geom_spatraster(data = lndcvr_na, aes(fill = NA_NALCMS_landcover_2020_30m)) +
+  geom_spatraster(data = precip, aes(fill = wc2.1_2.5m_prec_03))+
+  # ^ does this have to be done with every layer?
+  geom_spatraster(data = soil_phh2o_0_5, aes(fill = SBIO4_0_5cm_Temperature_Seasonality)) +
+  geom_spatraster(data = soil_phh2o_5_15, aes(fill = SBIO4_5_15cm_Temperature_Seasonality)) +
+  geom_spatraster(data = soil_temp_0_5, aes(fill = SBIO4_0_5cm_Temperature_Seasonality)) +
+  geom_spatraster(data = soil_temp_5_15, aes(fill = SBIO4_5_15cm_Temperature_Seasonality)) +
+  geom_spatraster(data = tavg_mar_jun, aes(fill = wc2.1_2.5m_tavg_03)) +
+  # ^ does this have to be done with every layer?
+  geom_sf(data = ran_occ_sf)
+  
   
 
 ## Thinning Occurrences ##
