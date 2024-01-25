@@ -49,7 +49,7 @@ ggplot()+
   geom_spatraster(data = land_mask, aes(fill = land_mask_1985)) +
   geom_sf(data = ran_occ_sf) # sf object with coordinates
 
-# replace land_mask with DEM?
+# replace land_mask with DEM or elevation_na raster?
 # add subsequent predictor rasters as new layers with geom_spatraster?
 ggplot()+
   geom_spatraster(data = land_mask, aes(fill = land_mask_1985)) +

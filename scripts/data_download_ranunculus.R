@@ -9,17 +9,20 @@ library(raster)
 library(sf)
 library(rgbif)
 library(CoordinateCleaner)
+# install.packages('C:/Users/PilatH/OneDrive - AGR-AGR/Desktop/ClimateNAr_1.2.0.zip', repos=NULL, type='source')
+library(ClimateNAr)
 # note: cannot load rgdal and terra at the same time 
   # if using project function from terra (call terra::project)
+
 
 ## Extent ##
 
 # new geographic extent created in continental_divide.Rmd
 
+
 ## Spatial Extent ##
 
-
-na_bound <- read_sf("data/continental_divide_buffer_boundary.shp")
+na_bound <- read_sf("data/continental_divide/continental_divide_buffer_boundary.shp")
 na_bound <- vect(na_bound)
 na_extent <- ext(na_bound)
 

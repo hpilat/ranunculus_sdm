@@ -40,6 +40,7 @@ soil_phh2o_0_5 <- terra::project(soil_phh2o_0_5, "EPSG:4326",
                                  method = "bilinear")
 soil_phh2o_5_15 <- terra::project(soil_phh2o_5_15, "EPSG:4326",
                                   method = "bilinear")
+
 # crop pH SpatRaster to North American extent
 soil_phh2o_0_5 <- crop(soil_phh2o_0_5, na_bound)
 soil_phh2o_5_15 <- crop(soil_phh2o_5_15, na_bound)
@@ -50,11 +51,12 @@ soil_phh2o_5_15 <- crop(soil_phh2o_5_15, na_bound)
 # resample elevation_na to change resolution
 # elevation_na <- terra::resample(elevation_na, soil_temp_0_5)
 
-# crop elevation data to British Columbia extent
+# crop elevation data to study area extent
 # elevation_na <- crop(elevation_na, na_bound)
 
 # write elevation_na to file for easier reuse
-# elevation_na <- writeRaster(elevation_na, filename = "data/elevation_na.tif")
+# elevation_na <- writeRaster(elevation_na, filename = "data/elevation_na.tif", 
+                            overwrite = TRUE)
 
 # read in elevation data
 elevation_na <- rast("data/elevation_na.tif")
@@ -113,15 +115,22 @@ precip <- rast("data/precipitation.tif")
 # lndcvr_na <- writeRaster(lndcvr_na, "data/lndcvr_na.tif", overwrite = TRUE)
 
 # import processed landcover data from new file created above
-lndcvr_na <- rast("data/lndcvr_na.tif")
+# lndcvr_na <- rast("data/lndcvr_na.tif")
 
 # reproject anthropogenic biomes data to WGS84
-anth_biome <- project(anth_biome, "EPSG:4326")
+# anth_biome <- project(anth_biome, "EPSG:4326")
 
 # resample anth_biome to change resolution
-anth_biome <- resample(anth_biome, soil_temp_0_5)
+# anth_biome <- resample(anth_biome, soil_temp_0_5)
 
+# crop anth_biome to study extent
+# anth_biome <- crop(anth_biome, na_bound)
 
+# write anth_biome to file for faster computation
+# anth_biome <- writeRaster(anth_biome, filename = "data/anth_biome_processed.tif")
+
+# read in processed anth_biome raster
+anth_biome <- rast("data/anth_biome_processed.tif")
 
 #### code below this point doesn't really work ####
   #### it runs but doesn't produce what I need, which is rasters with no NA values, 
@@ -149,7 +158,7 @@ predictors_multirast <- rast(c(anth_biome,
                                soil_phh2o_5_15,
                                soil_temp_0_5, 
                                soil_temp_5_15,
-                               tavg_mar_jun, 
+                               tavg_mar_jun)) 
                               # watersheds)) # needs some work
 
 # multiraster doesn't hold any values - likely need to remove NA values from 
@@ -157,9 +166,6 @@ predictors_multirast <- rast(c(anth_biome,
 
 
 # mask all layers so values outside of na_bound are NA
-
-# can also try: mask(r, !is.na(r))
-
 anth_biome <- mask(anth_biome, na_bound)
 elevation_na <- mask(elevation_na, na_bound)
 lndcvr_na <- mask(lndcvr_na, na_bound)
@@ -169,7 +175,42 @@ soil_phh2o_5_15 <- mask(soil_phh2o_5_15, na_bound)
 soil_temp_0_5 <- mask(soil_temp_0_5, na_bound)
 soil_temp_5_15 <- mask(soil_temp_5_15, na_bound)
 tavg_mar_jun <- mask(tavg_mar_jun, na_bound)
-watersheds <- mask(watersheds, na_bound)
+# watersheds <- mask(watersheds, na_bound)
+
+# set all NA values to -9999? (predictors cannot have NA values)
+anth_biome[is.na(anth_biome)] <- -9999
+elevation_na[is.na(elevation_na)] <- -9999
+lndcvr_na[is.na(lndcvr_na)] <- -9999
+precip[is.na(precip)] <- -9999
+soil_phh2o_0_5[is.na(soil_phh2o_5_15)] <- -9999
+soil_phh2o_5_15[is.na(soil_phh2o_5_15)] <- -9999
+soil_temp_0_5[is.na(soil_temp_0_5)] <- -9999
+soil_temp_5_15[is.na(soil_temp_5_15)] <- -9999
+tavg_mar_jun[is.na(tavg_mar_jun)] <- -9999
+
+# try making a multilayer raster again
+predictors_multirast <- rast(c(anth_biome, 
+                               elevation_na,
+                               lndcvr_na, 
+                               precip, 
+                               soil_phh2o_0_5,
+                               soil_phh2o_5_15,
+                               soil_temp_0_5, 
+                               soil_temp_5_15,
+                               tavg_mar_jun))
+
+# can also try: mask(r, !is.na(r))
+
+anth_biome <- mask(anth_biome, na_bound, updatevalue = -9999)
+elevation_na <- mask(elevation_na, na_bound, updatevalue = -9999)
+lndcvr_na <- mask(lndcvr_na, na_bound, updatevalue = -9999)
+precip <- mask(precip, na_bound, updatevalue = -9999)
+soil_phh2o_0_5 <- mask(soil_phh2o_0_5, na_bound, updatevalue = -9999)
+soil_phh2o_5_15 <- mask(soil_phh2o_5_15, na_bound, updatevalue = -9999)
+soil_temp_0_5 <- mask(soil_temp_0_5, na_bound, updatevalue = -9999)
+soil_temp_5_15 <- mask(soil_temp_5_15, na_bound, updatevalue = -9999)
+tavg_mar_jun <- mask(tavg_mar_jun, na_bound, updatevalue = -9999)
+watersheds <- mask(watersheds, na_bound, updatevalue = -9999)
 
 # trim NA values from outside of boundary
 
@@ -237,21 +278,6 @@ bc_bec <- writeRaster(bc_bec, filename = "data/bc_bec.tif", overwrite = TRUE)
 tavg_bc <- writeRaster(tavg_bc, filename = "data/tavg_bc.tif")
 lndcvr_bc <- writeRaster(lndcvr_bc, filename = "data/lndcvr_bc.tif", overwrite = TRUE)
 
-
-## Multilayer Raster ##
-
-# create a multilayer raster of the predictor variables
-# new error: says extents don't match
-predictors_multirast <- rast(c(elevation_na,
-                               soil_temp_0_5, 
-                               soil_temp_5_15,
-                               soil_phh2o_0_5,
-                               soil_phh2o_5_15,
-                               precip,
-                               anth_biome,
-                               tavg_mar_jun,
-                               lndcvr_na))
-predictors_multirast <- writeRaster(predictors_multirast, filename = "data/predictors_multirast.tif")
 
 
                     
