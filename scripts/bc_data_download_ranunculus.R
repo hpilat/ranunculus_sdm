@@ -103,7 +103,7 @@ ran_occ_download <- occ_download_get('0019946-231120084113126') %>%
 ## Predictor Data ##
 
 # read in BEC map from bcmaps
-# bc_bec <- bcmaps::bec(ask = interactive(), force = FALSE)
+bc_bec <- bcmaps::bec(ask = interactive(), force = FALSE)
 
 # elevation data for North America
 elevation_na <- rast("data/northamerica_elevation_cec_2023.tif")

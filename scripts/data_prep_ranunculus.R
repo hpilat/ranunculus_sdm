@@ -26,24 +26,41 @@ ran_occ_sf
 ## Predictor Data ##
 
 # crop soil temperature SpatRaster to North American extent
-soil_temp_0_5 <- crop(soil_temp_0_5, na_bound)
-soil_temp_5_15 <- crop(soil_temp_5_15, na_bound)
+# soil_temp_0_5 <- crop(soil_temp_0_5, na_bound)
+# soil_temp_5_15 <- crop(soil_temp_5_15, na_bound)
 
 # reproject soil temperature SpatRasters to WGS84
-soil_temp_0_5 <- terra::project(soil_temp_0_5, "EPSG:4326",
-                                   method = "bilinear")
-soil_temp_5_15 <- terra::project(soil_temp_5_15, "EPSG:4326",
-                                    method = "bilinear")
+#soil_temp_0_5 <- terra::project(soil_temp_0_5, "EPSG:4326",
+                                # method = "bilinear")
+# soil_temp_5_15 <- terra::project(soil_temp_5_15, "EPSG:4326",
+                                # method = "bilinear")
+
+# write processed data to file for faster computation
+# soil_temp_0_5 <- writeRaster(soil_temp_0_5, filename = "data/soil_temp_0_5.tif")
+# soil_temp_5_15 <- writeRaster(soil_temp_5_15, filename = "data/soil_temp_5_15cm.tif")
+
+# read in soil temperature data from file:
+soil_temp_0_5 <- rast("data/soil_temp_0_5.tif")
+soil_temp_5_15 <- rast("data/soil_temp_5_15.tif")
+
 
 # reproject soil pH SpatRasters to WGS84
-soil_phh2o_0_5 <- terra::project(soil_phh2o_0_5, "EPSG:4326",
-                                 method = "bilinear")
-soil_phh2o_5_15 <- terra::project(soil_phh2o_5_15, "EPSG:4326",
-                                  method = "bilinear")
+# soil_phh2o_0_5 <- terra::project(soil_phh2o_0_5, "EPSG:4326",
+                                 # method = "bilinear")
+# soil_phh2o_5_15 <- terra::project(soil_phh2o_5_15, "EPSG:4326",
+                                 # method = "bilinear")
 
 # crop pH SpatRaster to North American extent
-soil_phh2o_0_5 <- crop(soil_phh2o_0_5, na_bound)
-soil_phh2o_5_15 <- crop(soil_phh2o_5_15, na_bound)
+# soil_phh2o_0_5 <- crop(soil_phh2o_0_5, na_bound)
+# soil_phh2o_5_15 <- crop(soil_phh2o_5_15, na_bound)
+
+# write processed soil pH data to file for faster computation
+# soil_phh2o_0_5 <- writeRaster(soil_phh2o_0_5, filename = "data/soil_phh2o_0_5.tif")
+# soil_phh2o_5_15 <- writeRaster(soil_phh2o_5_15, filename = "data/soil_phh2o_5_15.tif")
+
+# read in soil pH data from file
+soil_phh2o_0_5 <- rast("soilphh2o_0_5.tif")
+soil_phh2o_5_15 <- rast("soilphh2o_5_15.tif")
 
 # reproject elevation data to WGS84
 # elevation_na <- terra::project(elevation_na, "EPSG:4326", method = "bilinear")
@@ -56,7 +73,7 @@ soil_phh2o_5_15 <- crop(soil_phh2o_5_15, na_bound)
 
 # write elevation_na to file for easier reuse
 # elevation_na <- writeRaster(elevation_na, filename = "data/elevation_na.tif", 
-                            overwrite = TRUE)
+                          #  overwrite = TRUE)
 
 # read in elevation data
 elevation_na <- rast("data/elevation_na.tif")
@@ -115,7 +132,7 @@ precip <- rast("data/precipitation.tif")
 # lndcvr_na <- writeRaster(lndcvr_na, "data/lndcvr_na.tif", overwrite = TRUE)
 
 # import processed landcover data from new file created above
-# lndcvr_na <- rast("data/lndcvr_na.tif")
+lndcvr_na <- rast("data/lndcvr_na.tif")
 
 # reproject anthropogenic biomes data to WGS84
 # anth_biome <- project(anth_biome, "EPSG:4326")
@@ -132,34 +149,71 @@ precip <- rast("data/precipitation.tif")
 # read in processed anth_biome raster
 anth_biome <- rast("data/anth_biome_processed.tif")
 
+
+# create an empty raster template for shapefiles (currently vector objects)
+
+
+# calculate number of rows (Y direction) and columns (X) for raster 
+# using 1km resolution (1000)
+# numcols <- as.vector(ceiling((st_bbox(bc_bec)$xmax - st_bbox(bc_bec)$xmin)/1000))
+# numrows <- as.vector(ceiling((st_bbox(bc_bec)$ymax - st_bbox(bc_bec)$ymin)/1000))
+
+# create a temporary raster with number of columns and rows from other rasters
+dim(lndcvr_na)
+temprast <- rast(climate_zones_vect, ncols = 12247, nrows = 8024)
+
+# create raster from SpatVector and structure of temporary raster
+# select "ZONE" layer from BEC data
+climate_zones <- rasterize(climate_zones_vect, temprast, field = "Climate")
+plot(climate_zones)
+
+climate_zones <- project(climate_zones, "EPSG:4326")
+climate_zones<- resample(climate_zones, lndcvr_na)
+climate_zones <- crop(climate_zones, na_bound)
+
+# repeat above steps for protected areas data
+# IUCN categories
+protect_area_IUCN <- rasterize(protect_area_IUCN_vect, temprast, field = "TYPE_PA")
+protect_area_IUCN <- project(protect_area_IUCN, "EPSG:4326")
+protect_area_IUCN <- resample(protect_area_IUCN, lndcvr_na)
+protect_area_IUCN <- crop(protect_area_IUCN, na_bound)
+plot(protect_area_IUCN)
+
+# OECMs
+protect_area_OECM <- rasterize(protect_area_OECM_vect, temprast, field = "TYPE_PA")
+protect_area_OECM <- project(protect_area_OECM, "EPSG:4326")
+protect_area_OECM <- resample(protect_area_OECM, lndcvr_na)
+protect_area_OECM <- crop(protect_area_OECM, na_bound)
+plot(protect_area_OECM)
+
+# repeat above steps for watershed data
+watersheds <- rasterize(watersheds_vect, temprast, field = "NAW4_EN")
+watersheds <- project(watersheds, "EPSG:4326")
+watersheds <- resample(watersheds, lndcvr_na)
+watersheds <- crop(watersheds, na_bound)
+plot(watersheds)
+
+
+
 #### code below this point doesn't really work ####
   #### it runs but doesn't produce what I need, which is rasters with no NA values, 
        #### but matching extents so they can be combined in a multiraster ####
 
 
-
-# note: watersheds raster has no values
-
-# reproject watersheds data to WGS84
-watersheds <- project(watersheds, "EPSG:4326")
-
-# resample watersheds data to change resolution
-watersheds <- resample(watersheds, soil_temp_0_5)
-
-# crop watersheds data to study extent
-watersheds <- crop(watersheds, na_bound)
-
 # create a multilayer raster of the predictor variables
-predictors_multirast <- rast(c(anth_biome, 
+predictors_multirast <- rast(c(anth_biome,
+                               climate_zones,
                                elevation_na,
                                lndcvr_na, 
                                precip, 
+                               protect_area_IUCN, 
+                               protect_area_OECM,
                                soil_phh2o_0_5,
                                soil_phh2o_5_15,
                                soil_temp_0_5, 
                                soil_temp_5_15,
-                               tavg_mar_jun)) 
-                              # watersheds)) # needs some work
+                               tavg_mar_jun, 
+                               watersheds))
 
 # multiraster doesn't hold any values - likely need to remove NA values from 
     # individual predictor rasters
@@ -167,39 +221,62 @@ predictors_multirast <- rast(c(anth_biome,
 
 # mask all layers so values outside of na_bound are NA
 anth_biome <- mask(anth_biome, na_bound)
+climate_zones <- mask(climate_zones, na_bound)
 elevation_na <- mask(elevation_na, na_bound)
 lndcvr_na <- mask(lndcvr_na, na_bound)
 precip <- mask(precip, na_bound)
+protect_area_IUCN <- mask(protect_area_IUCN, na_bound)
+protect_area_OECM <- mask(protect_area_OECM, na_bound)
 soil_phh2o_0_5 <- mask(soil_phh2o_0_5, na_bound)
 soil_phh2o_5_15 <- mask(soil_phh2o_5_15, na_bound)
 soil_temp_0_5 <- mask(soil_temp_0_5, na_bound)
 soil_temp_5_15 <- mask(soil_temp_5_15, na_bound)
 tavg_mar_jun <- mask(tavg_mar_jun, na_bound)
-# watersheds <- mask(watersheds, na_bound)
+watersheds <- mask(watersheds, na_bound)
 
 # set all NA values to -9999? (predictors cannot have NA values)
 anth_biome[is.na(anth_biome)] <- -9999
+climate_zones[is.na(climate_zones)] <- -9999
 elevation_na[is.na(elevation_na)] <- -9999
 lndcvr_na[is.na(lndcvr_na)] <- -9999
 precip[is.na(precip)] <- -9999
+protect_area_IUCN[is.na(protect_area_IUCN)] <- -9999
+protect_area_OECM[is.na(protect_area_OECM)] <- -9999
 soil_phh2o_0_5[is.na(soil_phh2o_5_15)] <- -9999
 soil_phh2o_5_15[is.na(soil_phh2o_5_15)] <- -9999
 soil_temp_0_5[is.na(soil_temp_0_5)] <- -9999
 soil_temp_5_15[is.na(soil_temp_5_15)] <- -9999
 tavg_mar_jun[is.na(tavg_mar_jun)] <- -9999
+watersheds[is.na(watersheds)] <- -9999
+
+# since there are multiple layers in precip and tavg_mar_jun,
+# may need to use below code:
+# precip:
+for(i in 1:12){
+  precip[is.na(precip[,,i])] <- -9999
+}
+
+#tavg_mar_jun
+for(i in 1:4){
+  tavg_mar_jun[is.na(tavg_mar_jun[,,i])] <- -9999
+}
 
 # try making a multilayer raster again
-predictors_multirast <- rast(c(anth_biome, 
+predictors_multirast <- rast(c(anth_biome,
+                               climate_zones,
                                elevation_na,
                                lndcvr_na, 
                                precip, 
+                               protect_area_IUCN, 
+                               protect_area_OECM,
                                soil_phh2o_0_5,
                                soil_phh2o_5_15,
                                soil_temp_0_5, 
                                soil_temp_5_15,
-                               tavg_mar_jun))
+                               tavg_mar_jun, 
+                               watersheds))
 
-# can also try: mask(r, !is.na(r))
+# can also try: mask(r, !is.na(r)), where r is the SpatRaster object
 
 anth_biome <- mask(anth_biome, na_bound, updatevalue = -9999)
 elevation_na <- mask(elevation_na, na_bound, updatevalue = -9999)
@@ -212,9 +289,23 @@ soil_temp_5_15 <- mask(soil_temp_5_15, na_bound, updatevalue = -9999)
 tavg_mar_jun <- mask(tavg_mar_jun, na_bound, updatevalue = -9999)
 watersheds <- mask(watersheds, na_bound, updatevalue = -9999)
 
-# trim NA values from outside of boundary
 
-#### this might be where extents are shifting ####
+# OR: 
+# used different values as the colour scale gets messed right up with -9999 
+    # (skewed heavily toward -9999)
+anth_biome[is.na(anth_biome)] <- -10
+elevation_na[is.na(elevation_na)] <- -500
+lndcvr_na[is.na(lndcvr_na)] <- -10
+precip[is.na(precip)] <- -10
+soil_phh2o_0_5[is.na(soil_phh2o_5_15)] <- -10
+soil_phh2o_5_15[is.na(soil_phh2o_5_15)] <- -10
+soil_temp_0_5[is.na(soil_temp_0_5)] <- -100
+soil_temp_5_15[is.na(soil_temp_5_15)] <- -100
+tavg_mar_jun[is.na(tavg_mar_jun)] <- -200
+
+
+# trim NA values from outside of boundary
+#### this might be where extents are shifting, probably won't use the below code ####
 
 # anth_biome <- trim(anth_biome, padding = 0, value = NA)
 # elevation_na <- trim(elevation_na, padding = 0, value = NA)
@@ -226,57 +317,31 @@ watersheds <- mask(watersheds, na_bound, updatevalue = -9999)
 # soil_temp_5_15 <- trim(soil_temp_5_15, padding = 0, value = NA)
 # tavg_mar_jun <- trim(tavg_mar_jun, padding = 0, value = NA)
 
-
-# set all remaining NA values to -9999? (predictors cannot have NA values)
-# used different values as the rasters are continuous and the colour scale gets
-  # messed right up with -9999 (skewed heavily toward -9999)
-anth_biome[is.na(anth_biome)] <- -10
-elevation_na[is.na(elevation_na)] <- -500
-lndcvr_na[is.na(lndcvr_na)] <- -10
-precip[is.na(precip)] <- -10
-soil_phh2o_0_5[is.na(soil_phh2o_5_15)] <- -10
-soil_phh2o_5_15[is.na(soil_phh2o_5_15)] <- -10
-soil_temp_0_5[is.na(soil_temp_0_5)] <- -100
-soil_temp_5_15[is.na(soil_temp_5_15)] <- -100
-tavg_mar_jun[is.na(tavg_mar_jun)] <- -200
-
-# since there are multiple layers in precip and tavg_mar_jun,
-  # may need to use below code:
-# precip:
-for(i in 1:12){
-  precip[is.na(precip[,,i])] <- -10
-}
-
-#tavg_mar_jun
-for(i in 1:4){
-  tavg_mar_jun[is.na(tavg_mar_jun[,,i])] <- -200
-}
-
 # extents moved around a bit - need to crop to smallest extent (bc_bec or lndcvr_bc)
-elevation_bc <- crop(elevation_bc, bc_bound)
-soil_temp_0_5_bc <- crop(soil_temp_0_5_bc, bc_bound)
-soil_temp_5_15_bc <- crop(soil_temp_5_15_bc, bc_bound)
-soil_phh2o_0_5_bc <- crop(soil_phh2o_0_5_bc, bc_bound)
-soil_phh2o_5_15_bc <- crop(soil_phh2o_5_15_bc, bc_bound)
-prec_bc <- crop(prec_bc, bc_bound)
-tavg_bc <- crop(tavg_bc, bc_bound)
-lndcvr_bc <- crop(lndcvr_bc, bc_bound)
+# elevation_bc <- crop(elevation_bc, bc_bound)
+# soil_temp_0_5_bc <- crop(soil_temp_0_5_bc, bc_bound)
+# soil_temp_5_15_bc <- crop(soil_temp_5_15_bc, bc_bound)
+# soil_phh2o_0_5_bc <- crop(soil_phh2o_0_5_bc, bc_bound)
+# soil_phh2o_5_15_bc <- crop(soil_phh2o_5_15_bc, bc_bound)
+# prec_bc <- crop(prec_bc, bc_bound)
+# tavg_bc <- crop(tavg_bc, bc_bound)
+# lndcvr_bc <- crop(lndcvr_bc, bc_bound)
 
 
 # write rasters to file for faster computation
-elevation_bc <- writeRaster(elevation_bc, filename = "data/elevation_bc.tif")
-soil_temp_0_5_bc <- writeRaster(soil_temp_0_5_bc, 
-                                filename = "data/soil_temp_0_5_bc.tif")
-soil_temp_5_15_bc <- writeRaster(soil_temp_5_15_bc, 
-                               filename = "data/soil_temp_5_15_bc.tif")
-soil_phh2o_0_5_bc <- writeRaster(soil_phh2o_0_5_bc, 
-                                 filename = "data/soil_phh2o_0_5_bc.tif")
-soil_phh2o_5_15_bc <- writeRaster(soil_phh2o_5_15_bc,
-                                  filename = "data/soil_phh2o_5_15_bc.tif")
-prec_bc <- writeRaster(prec_bc, filename = "data/prec_bc.tif")
-bc_bec <- writeRaster(bc_bec, filename = "data/bc_bec.tif", overwrite = TRUE)
-tavg_bc <- writeRaster(tavg_bc, filename = "data/tavg_bc.tif")
-lndcvr_bc <- writeRaster(lndcvr_bc, filename = "data/lndcvr_bc.tif", overwrite = TRUE)
+# elevation_bc <- writeRaster(elevation_bc, filename = "data/elevation_bc.tif")
+# soil_temp_0_5_bc <- writeRaster(soil_temp_0_5_bc, 
+                                # filename = "data/soil_temp_0_5_bc.tif")
+# soil_temp_5_15_bc <- writeRaster(soil_temp_5_15_bc, 
+                                # filename = "data/soil_temp_5_15_bc.tif")
+# soil_phh2o_0_5_bc <- writeRaster(soil_phh2o_0_5_bc, 
+                                # filename = "data/soil_phh2o_0_5_bc.tif")
+# soil_phh2o_5_15_bc <- writeRaster(soil_phh2o_5_15_bc,
+                                # filename = "data/soil_phh2o_5_15_bc.tif")
+# prec_bc <- writeRaster(prec_bc, filename = "data/prec_bc.tif")
+# bc_bec <- writeRaster(bc_bec, filename = "data/bc_bec.tif", overwrite = TRUE)
+# tavg_bc <- writeRaster(tavg_bc, filename = "data/tavg_bc.tif")
+# lndcvr_bc <- writeRaster(lndcvr_bc, filename = "data/lndcvr_bc.tif", overwrite = TRUE)
 
 
 

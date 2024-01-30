@@ -47,20 +47,20 @@ soil_phh2o_5_15_bc <- terra::project(soil_temp_5_15_bc, "EPSG:4326",
 
 # create a SpatRaster of the BEC data
 # start by turning bc_bec into a SpatVector object
-# bc_bec_vec <- vect(bc_bec)
+bc_bec_vec <- vect(bc_bec)
 
 # calculate number of rows (Y direction) and columns (X) for raster 
 # using 1km resolution (1000)
-# numcols <- as.vector(ceiling((st_bbox(bc_bec)$xmax - st_bbox(bc_bec)$xmin)/1000))
-# numrows <- as.vector(ceiling((st_bbox(bc_bec)$ymax - st_bbox(bc_bec)$ymin)/1000))
+numcols <- as.vector(ceiling((st_bbox(bc_bec)$xmax - st_bbox(bc_bec)$xmin)/1000))
+numrows <- as.vector(ceiling((st_bbox(bc_bec)$ymax - st_bbox(bc_bec)$ymin)/1000))
 
 # create a temporary raster with number of columns and rows from above
-# bec_temprast <- rast(bc_bec_vec, ncols = numcols, nrows = numrows)
+bec_temprast <- rast(bc_bec_vec, ncols = numcols, nrows = numrows)
 
 # create raster from SpatVector and structure of temporary raster
 # select "ZONE" layer from BEC data
-# bc_bec <- rasterize(bc_bec_vec, bec_temprast, "ZONE")
-# plot(bc_bec)
+bc_bec <- rasterize(bc_bec_vec, bec_temprast, "ZONE")
+plot(bc_bec)
 
 # reproject BEC data to WGS84
 # bc_bec <- terra::project(bc_bec, "EPSG:4326", method = "near")

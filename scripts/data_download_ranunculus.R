@@ -22,7 +22,7 @@ library(ClimateNAr)
 
 ## Spatial Extent ##
 
-na_bound <- read_sf("data/continental_divide/continental_divide_buffer_boundary.shp")
+na_bound <- read_sf("data/continental_divide_buffer_boundary.shp")
 na_bound <- vect(na_bound)
 na_extent <- ext(na_bound)
 
@@ -108,22 +108,23 @@ precip_global <- geodata::worldclim_global(var = "prec",
 # read in anthropogenic biome data
 anth_biome <- rast("data/anthromes_EqArea.tif")
 
-# read in watersheds data
-watersheds <- read_sf("data/watersheds_shapefile/Watersheds_Shapefile/NA_Watersheds/data/watershed_p_v2.shp")
-watersheds <- vect(watersheds)
 
-#### raster needs some work - all NaN values ####
-watersheds <- rast(watersheds)
+# read in watersheds data
+watersheds_sf <- read_sf("data/watersheds_shapefile/Watersheds_Shapefile/NA_Watersheds/data/watershed_p_v2.shp")
+watersheds_vect <- vect(watersheds_sf)
 
 # read in protected areas data
 # IUCN categories:
-protect_area_IUCN <- read_sf("data/CEC_NA_2021_terrestrial_IUCN_categories.shp")
-protect_area_IUCN <- vect(protect_area_IUCN)
-protect_area_IUCN <- rast(protect_area_IUCN)
+protect_area_IUCN_sf <- read_sf("data/CEC_NA_2021_terrestrial_IUCN_categories.shp")
+protect_area_IUCN_vect <- vect(protect_area_IUCN_sf)
+
 # OECMs - what does this mean?
-protect_area_OECM <- read_sf("data/CEC_NA_2021_terrestrial_OECMs.shp")
-protect_area_OECM <- vect(protect_area_OECM)
-protect_area_OECM <- rast(protect_area_OECM)
+protect_area_OECM_sf <- read_sf("data/CEC_NA_2021_terrestrial_OECMs.shp")
+protect_area_OECM_vect <- vect(protect_area_OECM_sf)
+
+# read in North American Climate Zones data
+climate_zones_sf <- read_sf("data/North_America_Climate_Zones.shp")
+climate_zones_vect <- vect(climate_zones_sf)
 
 
 
