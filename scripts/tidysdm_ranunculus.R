@@ -249,7 +249,7 @@ autoplot(ran_models)
 # when adding members to an ensemble, they are auto-fitted to the full
   # training dataset and therefore ready to make predictions
 ran_ensemble <- simple_ensemble() %>% 
-  add_member(ran_models, metric = "boyce_cont")
+  add_member(ran_models, metric = "roc_auc")
 # can also use roc_auc and tss_max as metrics
 ran_ensemble
 autoplot(ran_ensemble)
@@ -270,7 +270,7 @@ ggplot() +
   # 0.8 threshold excluded all models, used 0.7 instead
 # take the median of the available model predictions (mean is the default)
 prediction_present_boyce <- predict_raster(ran_ensemble, climate_present, 
-                                           metric_thresh = c("boyce_cont", 0.7), 
+                                           metric_thresh = c("roc_auc", 0.8), 
                                            fun= "median")
 
 ggplot() +
@@ -307,16 +307,16 @@ get_time_ce_steps("WorldClim_2.1_HadGEM3-GC31-LL_ssp245_10m")
 
 # check the available variables:
 get_vars_for_dataset("WorldClim_2.1_HadGEM3-GC31-LL_ssp245_10m")
-# all 19 bioclimatic variables, no altitude (becuase it doesn't change over time)
+# all 19 bioclimatic variables, no altitude (because it doesn't change over time)
   # to use altitude, would have to copy it over from the present
   # but altitude not included in set of uncorrelated variables from earlier, 
     # so don't include here
 
 climate_future <- pastclim::region_slice(
   time_ce = 2090, 
-  bio_variables = vars_uncor, 
+  bio_variables = vars_uncor, # uncorrelated variables created previously
   data = "WorldClim_2.1_HadGEM3-GC31-LL_ssp245_10m", 
-  crop = bc_bound #boundary polygon for British Columbia
+  crop = na_bound #boundary polygon for study area
 )
 
 # predict using the ensemble:
@@ -358,7 +358,7 @@ set.seed(123) # make sure seed is set outside of the loop
 
 for (i_repeat in 1:3) {
   # thin the data
-  ran_thin_rep <- thin_by_cell(ran_occ_bc_sf, raster = climate_present)
+  ran_thin_rep <- thin_by_cell(ran_occ_sf, raster = climate_present)
   ran_thin_rep <- thin_by_dist(ran_thin_rep, dist_min = 5000)
   # sample pseudo-absences
   ran_thin_rep <- sample_pseudoabs(ran_thin_rep,
