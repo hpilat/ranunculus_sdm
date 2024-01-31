@@ -171,7 +171,6 @@ OK! that looks useful.
 Now we should export this layer, then we can create a new buffered layer too.
 
 ```{r}
-# dir.create("data/continental_divide")
 write_sf(western.divide, "data/continental_divide/continental_divide.shp")
 ```
 
