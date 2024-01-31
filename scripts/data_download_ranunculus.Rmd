@@ -1,0 +1,369 @@
+---
+title: "data_download_ranunculus"
+author: "Hannah Pilat"
+date: "2024-01-30"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This is a workflow for downloading occurrence data for *Ranunculus
+glaberrimus* and environmental and anthropogenic predictor data (present
+and future). These will be processed and used in a trial species
+distribution model to get a realized and potential distribution/to model
+suitable habitat for *R. glaberrimus*. This workflow will then be
+repeated for *Claytonia lanceolata*, our focal species.
+
+Start by creating directories for scripts, data, and outputs
+
+```{r, echo = FALSE}
+dir.create("data/")
+dir.create("data/raw")
+dir.create("data/processed")
+dir.create("scripts/")
+dir.create("outputs/")
+```
+
+All downloaded .tif and .shp files have been placed in the data/raw/ folder
+
+Now upload required packages for data wrangling and processing:
+
+```{r, echo = FALSE}
+library(tidyverse)
+library(geodata) # won't work when on AAFC VPN
+library(terra)
+library(raster)
+library(sf)
+library(rgbif)
+```
+
+### **Occurrence Data**
+
+Download *Ranunculus glaberrimus* occurrence data from GBIF, using rgbif
+package First, set up GBIF credentials/login information \^needs some
+work to be reproducible
+
+```{r, echo = FALSE}
+install.packages("usethis")
+usethis::edit_r_environ()
+```
+
+Download occurrence data for Ranunculus glaberrimus within North
+America, between the years 1950-2024
+
+```{r, echo = TRUE}
+rgbif::occ_download(
+  pred("hasGeospatialIssue", FALSE), 
+  pred("hasCoordinate", TRUE),
+  pred("continent", "north_america"),
+  pred("year", "1940,2024"),
+  pred("taxonKey", 3033299), 
+  format = "SIMPLE_CSV")
+```
+
+Check the status of the occurrence download:
+
+```{r, echo = TRUE}
+occ_download_wait('0067361-231120084113126')
+```
+
+To access download when it's finished:
+
+Note: I moved the CSV file to data/raw/ from the zipped GBIF folder but the below code isn't working
+
+```{r, echo = TRUE}
+ran_occ_download <- occ_download_get(key = '0067361-231120084113126', 
+                                     path = "data/") %>%
+  occ_download_import(key = '0067361-231120084113126', 
+                      path = "data/")
+```
+
+Download Info: Username: hpilat E-mail:
+[hannahepilat\@gmail.com](mailto:hannahepilat@gmail.com){.email} Format:
+SIMPLE_CSV Download key: 0067361-231120084113126 Created:
+2024-01-21T21:44:46.652+00:00 Citation
+[[Info:\\\\](Info:){.uri}](%5BInfo:%5D(Info:)%7B.uri%7D){.uri} Please
+always cite the download DOI when using this data.
+<https://www.gbif.org/citation-guidelines> DOI: 10.15468/dl.3f98w4
+Citation: GBIF Occurrence Download <https://doi.org/10.15468/dl.3f98w4>
+Accessed from R via rgbif (<https://github.com/ropensci/rgbif>) on
+2024-01-21
+
+### **Predictor Data**
+
+For our model, we want to input our predictor data as a multilayered
+SpatRaster. Most of the data is available as GeoTiff (.tif) files, which
+will be imported to R as SpatRasters. Some of the data come as
+shapefiles, which will need to be vectorized and subsequently
+rasterized.
+
+#### **Present:**
+
+Elevation data for North America (2023), downloaded from
+<http://www.cec.org/north-american-environmental-atlas/elevation-2023/>
+
+```{r, echo = FALSE}
+elevation_na <- rast("data/raw/northamerica_elevation_cec_2023.tif")
+```
+
+Landcover data for North America (2020), downloaded from:
+<http://www.cec.org/north-american-environmental-atlas/land-cover-30m-2020/>
+
+```{r, echo = FALSE}
+lndcvr_na <- rast("data/raw/NA_NALCMS_landcover_2020_30m.tif")
+```
+
+Global soil temperature seasonality data (standard deviation X 100), for
+0-5 and 5-15 cm under the surface, which is relevant to where
+*skwenkwinem* grows. Downloaded from:
+<https://zenodo.org/records/7134169>
+
+```{r, echo = FALSE}
+soil_temp_0_5 <- rast("data/raw/SBIO4_0_5cm_Temperature_Seasonality.tif")
+soil_temp_5_15 <- rast("data/raw/SBIO4_5_15cm_Temperature_Seasonality.tif")
+```
+
+Soil pH data for 0-5 and 5-15 cm below the surface, through the geodata
+package. Depth = 5 indicates 0-5cm below surface Depth = 15 indicates
+5-15cm below surface Downloads a folder called "soil_world"
+
+```{r, echo = FALSE}
+soil_phh2o_0_5 <- geodata::soil_world(var = "phh2o", depth = 5, stat =
+"mean", path = "data/raw/")
+
+soil_phh2o_5_15 <- geodata::soil_world(var = "phh2o", depth = 15, stat
+= "mean", path = "data/raw/")
+```
+
+Global WorldClim monthly average temperature data at 2.5 arcsec
+resolution, downloads a folder called "climate"
+
+```{r, echo = FALSE}
+temp_avg_global <- geodata::worldclim_global(var = "tavg", res = "2.5",
+                                             path = "data/raw/", version = "2.1")
+```
+
+Global WorldClim monthly precipitation data at 2.5 arcsec resolution
+
+```{r, echo = FALSE}
+precip_global <- geodata::worldclim_global(var = "prec", res = "2.5",
+                                           path = "data/raw/", version = "2.1")
+```
+
+Anthropogenic biome data (2008), downloaded from
+<http://www.cec.org/north-american-environmental-atlas/anthropogenic-biomes/>
+
+```{r, echo = FALSE}
+anth_biome <- rast("data/raw/anthromes_EqArea.tif")
+```
+
+The following are available as shapefiles, and therefore we turn them
+into SpatVectors in order to process them (later) to SpatVectors.
+
+Watersheds data (2011), downloaded from
+<http://www.cec.org/north-american-environmental-atlas/watersheds/>
+
+```{r, echo = FALSE}
+watersheds_sf <- read_sf("data/raw/watersheds_shapefile/Watersheds_Shapefile/NA_Watersheds/data/watershed_p_v2.shp")
+watersheds_vect <- vect(watersheds_sf)
+```
+
+Protected areas in North America data (2021), downloaded from:
+<http://www.cec.org/north-american-environmental-atlas/north-american-protected-areas-2021/>
+
+##### IUCN categories:
+
+-   Ia. Strict Nature Reserve (managed mainly for science or wilderness
+    protection)
+-   Ib. Wilderness Area (managed mainly for science or wilderness
+    protection)
+-   II. National Park (managed mainly for ecosystem protection and
+        recreation)
+-   III. Natural Monument or Feature (managed mainly for conservation of
+         specific natural features)
+-   IV. Habitat/Species Management Area (managed mainly for conservation
+        through management intervention)
+-   V. Protected Landscape/Seascape (managed mainly for
+    landscape/seascape protection and recreation)
+-   VI. Protected area with sustainable use of natural resources
+        (managed mainly for sustainable use of natural systems)
+
+```{r, echo = FALSE}
+protect_area_IUCN_sf <- read_sf("data/raw/CEC_NA_2021_terrestrial_IUCN_categories.shp")
+protect_area_IUCN_vect <- vect(protect_area_IUCN_sf)
+```
+
+OECMs - Other Effective area-based Conservation Measures (not
+categorized by IUCN), also downloaded from
+<http://www.cec.org/north-american-environmental-atlas/north-american-protected-areas-2021/>
+
+```{r, echo = FALSE}
+protect_area_OECM_sf <- read_sf("data/raw/CEC_NA_2021_terrestrial_OECMs.shp")
+protect_area_OECM_vect <- vect(protect_area_OECM_sf)
+```
+
+North American Climate Zones data (2021), downloaded from:
+<http://www.cec.org/north-american-environmental-atlas/climate-zones-of-north-america/>
+Issues downloading: apparently the file doesn't exist? Even though it's in the directory. Troubleshooting this
+```{r, echo = FALSE}
+climate_zones_sf <- read_sf("data/raw/North_America_Climate_Zones.shp")
+climate_zones_vect <- vect(climate_zones_sf)
+```
+
+The below code is in progress, need to figure out which model to use,
+the 30 degree lon/lat tile to use (or download global data), as well as
+which SSPs are associated with the 126, 245, 370, 545 codes. These codes
+seem to only exist within R and are not used in the CMIP6 reports. I put
+my best guess in brackets following the SSP code for which scenario it
+is, but haven't yet confirmed this
+
+#### **Future**
+
+Shared Socioeconomic Pathway 126 (no climate policy?)
+
+SSP 126 for years 2021-2040:
+
+```{r, echo = FALSE}
+cmip6_2021_2040_126 <- geodata::cmip6_tile(lon, lat, 
+                                           model, 
+                                           ssp = "126", 
+                                           time = "2021-2040", 
+                                           var = , 
+                                           res = 2.5, 
+                                           path = "data/raw/")
+```
+
+SSP 126 for years 2041-2060:
+
+```{r, echo = FALSE}
+cmip6_2041_2060_126 <- geodata::cmip6_tile(lon, lat, 
+                                           model, 
+                                           ssp = "126", 
+                                           time = "2041-2060", 
+                                           var = , 
+                                           res = 2.5, 
+                                           path = "data/raw/")
+```
+
+SSP 126 for years 2061-2080:
+
+```{r, echo = FALSE}
+cmip6_2061_2080_126 <- geodata::cmip6_tile(lon, lat, 
+                                           model, 
+                                           ssp = "126", 
+                                           time = "2061-2080", 
+                                           var = , 
+                                           res = 2.5, 
+                                           path = "data/raw/")
+```
+
+Future climate predictions shared Socioeconomic Pathway 245 (low/mid?)
+
+SSP 245 for years 2021-2040:
+
+```{r, echo = FALSE}
+cmip6_2021_2040_245 <- geodata::cmip6_tile(lon, lat, 
+                                           model, 
+                                           ssp = "245",
+                                           time = "2021-2040",
+                                           var = , 
+                                           res = 2.5, 
+                                           path = "data/raw/")
+```
+
+SSP 245 for years 2041-2060:
+
+```{r, echo = FALSE}
+cmip6_2041_2060_245 <- geodata::cmip6_tile(lon, lat,
+                                           model, 
+                                           ssp = "245", 
+                                           time = "2041-2060",
+                                           var = , 
+                                           res = 2.5, 
+                                           path = "data/raw/")
+```
+
+SSP 245 for years 2061-2080:
+
+```{r, echo = FALSE}
+cmip6_2061_2080_245 <- geodata::cmip6_tile(lon, lat, 
+                                           model, 
+                                           ssp = "245", 
+                                           time = "2061-2080", 
+                                           var = , 
+                                           res = 2.5, 
+                                           path = "data/raw/")
+```
+
+Future climate predictions Shared Socioeconomic Pathway 370 (mid/high?)
+
+SSP 370 for years 2021-2040:
+
+```{r, echo = FALSE}
+cmip6_2021_2040_370 <- geodata::cmip6_tile(lon, lat, 
+                                           model, 
+                                           ssp = "370",
+                                           time = "2021-2040",
+                                           var = ,
+                                           res = 2.5,
+                                           path = "data/raw/")
+```
+
+SSP 370 for years 2041-2060"
+
+```{r, echo = FALSE}
+cmip6_2041_2060_370 <- geodata::cmip6_tile(lon, lat, 
+                                           model, 
+                                           ssp = "370", 
+                                           time = "2041-2060",
+                                           var = , 
+                                           res = 2.5, 
+                                           path = "data/raw/")
+```
+
+SSP 370 for years 2061-2080:
+
+```{r, echo = FALSE}
+cmip6_2061_2080_370 <- geodata::cmip6_tile(lon, lat, 
+                                           model, 
+                                           ssp = "370", 
+                                           time = "2061-2080",
+                                           var = , 
+                                           res = 2.5, 
+                                           path = "data/raw/")
+```
+
+Future climate predictions Shared Socioeconomic Pathway 545 (high?)
+
+SSP 545 for years 2021-2040:
+
+```{r, echo = FALSE}
+cmip6_2021_2040_545 <- geodata::cmip6_tile(lon, lat,
+                                           model, 
+                                           ssp = "545", 
+                                           time = "2021-2040",
+                                           var = , 
+                                           res = 2.5, 
+                                           path = "data/raw/")
+```
+
+SSP 545 for years 2041-2060:
+
+```{r, echo = FALSE}
+cmip6_2041_2060_545 <- geodata::cmip6_tile(lon, lat,
+                                           model, 
+                                           ssp = "545",
+                                           time = "2041-2060",
+                                           var = , 
+                                           res = 2.5,
+                                           path = "data/raw/")
+```
+
+SSP 545 for years 2061-2080: \`\`\`{r, echo = FALSE} cmip6_2061_2080_545
+\<- geodata::cmip6_tile(lon, lat, model, ssp = "545", time =
+"2061-2080", var = , res = 2.5, path = "data/raw/")
