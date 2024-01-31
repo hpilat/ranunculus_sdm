@@ -36,9 +36,9 @@ occ_download_wait('0067361-231120084113126')
 
 # to access download when it's finished
 ran_occ_download <- occ_download_get(key = '0067361-231120084113126', 
-                                     path = "data/") %>%
+                                     path = "data/raw/") %>%
   occ_download_import(key = '0067361-231120084113126', 
-                      path = "data/")
+                      path = "data/raw/")
 
 # Download Info:
 # Username: hpilat

@@ -4,6 +4,10 @@
 na_bound <- read_sf("data/raw/continental_divide_buffer_boundary.shp")
 na_bound <- vect(na_bound)
 # na_extent <- ext(na_bound)
+# create an empty raster based on study extent in order to rasterize na_bound
+  # to use as a basemap for TidySDM
+temprast <- rast(na_bound, ncols = 12247, nrows = 8024)
+na_bound_rast <- rasterize(na_bound, temprast)
 
 
 ## Occurrence Data ##
@@ -218,7 +222,6 @@ protect_area_OECM <- rast("data/processed/protect_area_OECM.tif")
 watersheds <- rast("data/processed/watersheds.tif")
 
 
-
 #### code below this point doesn't really work ####
   #### it runs but doesn't produce what I need, which is rasters with no NA values, 
        #### but matching extents so they can be combined in a multiraster ####
@@ -229,14 +232,14 @@ predictors_multirast <- rast(c(anth_biome,
                                climate_zones,
                                elevation_na,
                                lndcvr_na, 
-                               precip, 
+                              # precip, 
                                protect_area_IUCN, 
                                protect_area_OECM,
                                soil_phh2o_0_5,
                                soil_phh2o_5_15,
                                soil_temp_0_5, 
                                soil_temp_5_15,
-                               tavg_mar_jun, 
+                             #  tavg_mar_jun, 
                                watersheds))
 
 # multiraster doesn't hold any values - likely need to remove NA values from 
@@ -248,14 +251,14 @@ anth_biome <- mask(anth_biome, na_bound)
 climate_zones <- mask(climate_zones, na_bound)
 elevation_na <- mask(elevation_na, na_bound)
 lndcvr_na <- mask(lndcvr_na, na_bound)
-precip <- mask(precip, na_bound)
+# precip <- mask(precip, na_bound)
 protect_area_IUCN <- mask(protect_area_IUCN, na_bound)
 protect_area_OECM <- mask(protect_area_OECM, na_bound)
 soil_phh2o_0_5 <- mask(soil_phh2o_0_5, na_bound)
 soil_phh2o_5_15 <- mask(soil_phh2o_5_15, na_bound)
 soil_temp_0_5 <- mask(soil_temp_0_5, na_bound)
 soil_temp_5_15 <- mask(soil_temp_5_15, na_bound)
-tavg_mar_jun <- mask(tavg_mar_jun, na_bound)
+# tavg_mar_jun <- mask(tavg_mar_jun, na_bound)
 watersheds <- mask(watersheds, na_bound)
 
 # set all NA values to -9999? (predictors cannot have NA values)
@@ -263,14 +266,14 @@ anth_biome[is.na(anth_biome)] <- -9999
 climate_zones[is.na(climate_zones)] <- -9999
 elevation_na[is.na(elevation_na)] <- -9999
 lndcvr_na[is.na(lndcvr_na)] <- -9999
-precip[is.na(precip)] <- -9999
+# precip[is.na(precip)] <- -9999
 protect_area_IUCN[is.na(protect_area_IUCN)] <- -9999
 protect_area_OECM[is.na(protect_area_OECM)] <- -9999
 soil_phh2o_0_5[is.na(soil_phh2o_5_15)] <- -9999
 soil_phh2o_5_15[is.na(soil_phh2o_5_15)] <- -9999
 soil_temp_0_5[is.na(soil_temp_0_5)] <- -9999
 soil_temp_5_15[is.na(soil_temp_5_15)] <- -9999
-tavg_mar_jun[is.na(tavg_mar_jun)] <- -9999
+# tavg_mar_jun[is.na(tavg_mar_jun)] <- -9999
 watersheds[is.na(watersheds)] <- -9999
 
 # since there are multiple layers in precip and tavg_mar_jun,

@@ -12,10 +12,11 @@ library(overlapping)
 # read in Ranunculus glaberrimus presence dataframe, 
   # dataframe with ID, latitude, and longitude columns
 ran_occ_download
+ran_occ
 
 # plot the presences on a map to visualize them
 # cast coordinates into an sf object and set its CRS to WGS84
-ran_occ_sf <- st_as_sf(ran_occ, coords = c("decimalLongitude", "decimalLatitude"))
+ran_occ_sf <- st_as_sf(ran_occ_download, coords = c("decimalLongitude", "decimalLatitude"))
 # set CRS to WGS84
 st_crs(ran_occ_sf) <- 4326
 
@@ -64,6 +65,8 @@ ggplot()+
   geom_spatraster(data = soil_temp_5_15, aes(fill = SBIO4_5_15cm_Temperature_Seasonality)) +
   geom_spatraster(data = tavg_mar_jun, aes(fill = wc2.1_2.5m_tavg_03)) +
   # ^ does this have to be done with every layer?
+  # thought: remove average temp and precipitation rasters from this run of the model
+    # use in model run with 19 bioclimatic variables
   geom_sf(data = ran_occ_sf)
   
   
@@ -73,19 +76,19 @@ ggplot()+
 # thin the observations to have one per cell in the raster
   # works better when using an equal area projection
 set.seed(1234567)
-ran_occ_bc_sf <- thin_by_cell(ran_occ_bc_sf, raster = land_mask)
-nrow(ran_occ_bc_sf)
-# thinned from 941 observations to 105
+ran_occ_sf <- thin_by_cell(ran_occ_sf, raster = land_mask)
+nrow(ran_occ_sf)
+# thinned from 3768 observations to 1079
 
 # plot the thinned occurrences
 ggplot() +
   geom_spatraster(data = land_mask, aes(fill = land_mask_1985)) +
-  geom_sf(data = ran_occ_bc_sf)
+  geom_sf(data = ran_occ_sf)
 
 # thin occurrences further to remove points closer than 5km
   # distance given in metres, use km2m to reduce number of 0s written for 20km
 set.seed(1234567)
-ran_occ_thin <- thin_by_dist(ran_occ_bc_sf, dist_min = km2m(5))
+ran_occ_thin <- thin_by_dist(ran_occ_sf, dist_min = km2m(5))
 nrow(ran_occ_thin)
 
 # plot the thinned occurrences again
@@ -99,10 +102,12 @@ ggplot() +
 # constrain pseudoabsences to be minimum 50km away from presence points
 # add pseudoabsences to object with thinned occurrences
 # select 3 times as many pseudoabsences as presences 
-  # (review Barbet-Massin paper to select # of pseudoabsences?)
+  # Barbet-Massin (2012) recommend a large number of pseudoabsences, 
+    # like 10 000, to adequately represent the different environmental conditions
+
 set.seed(1234567)
 ran_occ_thin <- sample_pseudoabs(ran_occ_thin, 
-                                 n = 3 * nrow(ran_occ_thin), 
+                                 n = 5 * nrow(ran_occ_thin), 
                                  raster = land_mask, 
                                  coords = NULL, 
                                  method = c("dist_min", km2m(50))
@@ -128,7 +133,7 @@ climate_present <- pastclim::region_slice(
   time_ce = 1985, 
   bio_variables = climate_vars, 
   data = "WorldClim_2.1_10m", 
-  crop = bc_bound # SpatVector with area boundary
+  crop = na_bound # SpatVector with area boundary
 )
 
 # select variables noticeably different from the underlying background
@@ -162,6 +167,16 @@ pairs(climate_present[[suggested_vars]])
 climate_present <- climate_present[[suggested_vars]]
 vars_uncor <- filter_high_cor(climate_present, cutoff = 0.7)
 vars_uncor
+# only left with 3 variables here
+
+# try thresholding all 19 variables
+# vars_to_keep <- c("bio01", "bio02", "bio03", "bio04", "bio05", "bio06", "bio07", 
+                  "bio08", "bio09", "bio10", "bio11", "bio12", "bio13", "bio14", 
+                  "bio15", "bio16", "bio17", "bio18", "bio19", "altitude")
+
+# climate_present <- climate_present[[vars_to_keep]]
+# vars_uncor_all <- filter_high_cor(climate_present, cutoff = 0.7)
+# vars_uncor_all
 
 # select uncorrelated variables
 ran_occ_thin <- ran_occ_thin %>% select(all_of(c(vars_uncor, "class")))
@@ -202,19 +217,21 @@ ran_models <-
 
 # set up a spatial block cross-validation scheme to tune and assess models
   # 80:20 split
+# insert watersheds layer here when conducting sensitivity analysis?
 set.seed(100)
 ran_cross_val <- spatialsample::spatial_block_cv(ran_occ_thin, v = 5)
 autoplot(ran_cross_val)
 
 # use block cross validation folds to tune and assess the models
 # used 3 combinations of hyperparameters per model (far too few for reality)
+# need to change grid = 3 to a higher number
 library(ranger)
 library(xgboost)
 set.seed(1234567)
 ran_models <- 
   ran_models %>% 
   workflow_map("tune_grid", 
-               resamples = ran_cross_val, grid = 3, # grid needs to increase
+               resamples = ran_cross_val, grid = 10, # grid needs to increase
                metrics = sdm_metric_set(), verbose = TRUE)
 # warning messages: no event observations were detected in 'truth with 
   # event level 'presence'
