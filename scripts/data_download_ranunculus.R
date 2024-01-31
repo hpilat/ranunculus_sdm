@@ -1,30 +1,17 @@
 # dir.create("data/")
+# dir.create("data/raw")
 # dir.create("scripts/")
 library(tidyverse)
 library(geodata) # won't work when on AAFC VPN
-library(bcmaps)
-library(bcdata)
 library(terra)
 library(raster)
 library(sf)
 library(rgbif)
-library(CoordinateCleaner)
+# library(CoordinateCleaner)
 # install.packages('C:/Users/PilatH/OneDrive - AGR-AGR/Desktop/ClimateNAr_1.2.0.zip', repos=NULL, type='source')
-library(ClimateNAr)
+# library(ClimateNAr)
 # note: cannot load rgdal and terra at the same time 
   # if using project function from terra (call terra::project)
-
-
-## Extent ##
-
-# new geographic extent created in continental_divide.Rmd
-
-
-## Spatial Extent ##
-
-na_bound <- read_sf("data/continental_divide_buffer_boundary.shp")
-na_bound <- vect(na_bound)
-na_extent <- ext(na_bound)
 
 
 ## Occurrence Data ##
@@ -71,59 +58,56 @@ ran_occ_download <- occ_download_get(key = '0067361-231120084113126',
 
 
 # elevation data for North America
-elevation_na <- rast("data/northamerica_elevation_cec_2023.tif")
+elevation_na <- rast("data/raw/northamerica_elevation_cec_2023.tif")
 
 # read in landcover data for North America
-lndcvr_na <- rast("data/NA_NALCMS_landcover_2020_30m.tif")
+lndcvr_na <- rast("data/raw/NA_NALCMS_landcover_2020_30m.tif")
 
 # soil temperature data:
-soil_temp_0_5 <- rast("data/SBIO4_0_5cm_Temperature_Seasonality.tif")
-soil_temp_5_15 <- rast("data/SBIO4_5_15cm_Temperature_Seasonality.tif")
+soil_temp_0_5 <- rast("data/raw/SBIO4_0_5cm_Temperature_Seasonality.tif")
+soil_temp_5_15 <- rast("data/raw/SBIO4_5_15cm_Temperature_Seasonality.tif")
 
-# soil pH data in case geodata package acts up:
-# soil_phh2o_0_5 <- rast("data/phh2o_0-5cm_mean_1000.tif")
-# soil_phh2o_5_15 <- rast("data/phh2o_5-15cm_mean_1000.tif")
-
+# soil pH data:
 soil_phh2o_0_5 <- geodata::soil_world(var = "phh2o", depth = 5, stat = "mean", 
-                             path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
+                             path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data\\raw", 
                              na.rm = TRUE)
 
 soil_phh2o_5_15 <- geodata::soil_world(var = "phh2o", depth = 15, stat = "mean", 
-                              path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data", 
+                              path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data\\raw", 
                               na.rm = TRUE)
 
 
 # import global WorldClim average temperature
 temp_avg_global <- geodata::worldclim_global(var = "tavg", 
                                              res = "2.5", 
-                                             path = "data/",
+                                             path = "data/raw/",
                                              version = "2.1")
 
 # import global WorldClim precipitation data
 precip_global <- geodata::worldclim_global(var = "prec", 
                                            res = "2.5", 
-                                           path = "data/", 
+                                           path = "data/raw/", 
                                            version = "2.1")
 
 # read in anthropogenic biome data
-anth_biome <- rast("data/anthromes_EqArea.tif")
+anth_biome <- rast("data/raw/anthromes_EqArea.tif")
 
 
 # read in watersheds data
-watersheds_sf <- read_sf("data/watersheds_shapefile/Watersheds_Shapefile/NA_Watersheds/data/watershed_p_v2.shp")
+watersheds_sf <- read_sf("data/raw/watersheds_shapefile/Watersheds_Shapefile/NA_Watersheds/data/watershed_p_v2.shp")
 watersheds_vect <- vect(watersheds_sf)
 
 # read in protected areas data
 # IUCN categories:
-protect_area_IUCN_sf <- read_sf("data/CEC_NA_2021_terrestrial_IUCN_categories.shp")
+protect_area_IUCN_sf <- read_sf("data/raw/CEC_NA_2021_terrestrial_IUCN_categories.shp")
 protect_area_IUCN_vect <- vect(protect_area_IUCN_sf)
 
 # OECMs - what does this mean?
-protect_area_OECM_sf <- read_sf("data/CEC_NA_2021_terrestrial_OECMs.shp")
+protect_area_OECM_sf <- read_sf("data/raw/CEC_NA_2021_terrestrial_OECMs.shp")
 protect_area_OECM_vect <- vect(protect_area_OECM_sf)
 
 # read in North American Climate Zones data
-climate_zones_sf <- read_sf("data/North_America_Climate_Zones.shp")
+climate_zones_sf <- read_sf("data/raw/North_America_Climate_Zones.shp")
 climate_zones_vect <- vect(climate_zones_sf)
 
 
