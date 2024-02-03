@@ -37,6 +37,8 @@ ran_occ_sf
 
 ## Predictor Data ##
 
+## Numeric Rasters:
+
 # crop soil temperature SpatRaster to North American extent
 # soil_temp_0_5 <- crop(soil_temp_0_5, na_bound)
 # soil_temp_5_15 <- crop(soil_temp_5_15, na_bound)
@@ -120,6 +122,10 @@ tavg_mar_jun <- rast("data/processed/tavg_mar_jun.tif")
 # read in precipitation data
 precip <- rast("data/processed/precipitation.tif")
 
+
+## Categorical Rasters
+
+
 # aggregate landcover data so it can be reprojected and cropped
 # lndcvr_na_agg <- aggregate(lndcvr_na, fact = 15)
 
@@ -139,6 +145,38 @@ precip <- rast("data/processed/precipitation.tif")
 
 # resample landcover BC data to change resolution
 # lndcvr_na <- resample(lndcvr_na, soil_temp_0_5)
+
+# create a list of the category names in lndcvr_na
+# lndcvr_cat <- c("Temperate or sub-polar needleleaf forest", 
+               #  "Sub-polar or taiga needleleaf forest", 
+               #  "Tropical or sub-tropical broadleaf evergreen forest", 
+               #  "Tropical or sub-tropical broadleaf deciduous forest", 
+               #  "Temperate or sub-polar broadleaf deciduous forest", 
+               #  "Mixed forest", 
+               #  "Tropical or sub-tropical shrubland", 
+               #  "Temperate or sub-polar shrubland", 
+               #  "Tropical or sub-tropical grassland", 
+               #  "Temperate or sub-polar grassland", 
+               #  "Sub-polar or polar shrubland-lichen-moss", 
+               #  "Sub-polar or polar grassland-lichen-moss", 
+               #  "Sub-polar or polar barren-lichen-moss", 
+               #  "Wetland", 
+               #  "Cropland", 
+               #  "Barren lands", 
+               #  "Urban and built-up", 
+               #  "Water", 
+               #  "Snow and ice")
+
+# lndcvr_char <- sample(lndcvr_cat, 19, replace = FALSE)
+# lndcvr_fact <- factor(lndcvr_char, levels = lndcvr_cat)
+# lndcvr_n_america <- rast(nrows = 8024,
+                       #  ncol = 12247,
+                       #  xmin = -179.25, 
+                       #  xmax = -77.19167, 
+                       #  ymin = 5.383333, 
+                       #  ymax = 72.25,
+                       #  vals = lndcvr_fact) 
+
 
 # create file of processed landcover data for faster re-use
 # lndcvr_na <- writeRaster(lndcvr_na, "data/processed/lndcvr_na.tif", overwrite = TRUE)
@@ -228,6 +266,9 @@ watersheds <- rast("data/processed/watersheds.tif")
 
 
 # create a multilayer raster of the predictor variables
+# can do up to 16 different layers 
+  # therefore, likely have to leave out precip and tavg_mar_jun, since they have
+  # 12 and 4 layers, respectively
 predictors_multirast <- rast(c(anth_biome,
                                climate_zones,
                                elevation_na,
@@ -245,6 +286,24 @@ predictors_multirast <- rast(c(anth_biome,
 # multiraster doesn't hold any values - likely need to remove NA values from 
     # individual predictor rasters
 
+# try a multiraster with only 2 categorical layers
+predictors_cat <- rast(c(anth_biome, climate_zones))
+  # no values, all NA. ***** Have different origins ******
+
+# try a multiraster with only 2 numeric layers
+predictors_num <- rast(c(soil_phh2o_0_5, soil_temp_0_5))
+  # no values, all NA. ***** Have different origins *****
+
+# try combining 2 rasters with same origin
+pred_combo_diff <- rast(c(soil_temp_0_5, anth_biome))
+pred_combo_same <- rast(c(soil_temp_0_5, soil_temp_5_15))
+
+# try assigning values to layer 1 of multiraster
+# need to have a matrix or dataframe
+soil_temp_0_5_df <- as.data.frame(soil_temp_0_5, xy = TRUE, cells = TRUE)
+
+values(pred_combo_same[[1]]) <- soil_temp_0_5_df
+
 
 # mask all layers so values outside of na_bound are NA
 anth_biome <- mask(anth_biome, na_bound)
@@ -261,9 +320,9 @@ soil_temp_5_15 <- mask(soil_temp_5_15, na_bound)
 # tavg_mar_jun <- mask(tavg_mar_jun, na_bound)
 watersheds <- mask(watersheds, na_bound)
 
-# set all NA values to -9999? (predictors cannot have NA values)
-anth_biome[is.na(anth_biome)] <- -9999
-climate_zones[is.na(climate_zones)] <- -9999
+# set all NA values to NoData Value for each data set? (predictors cannot have NA values)
+anth_biome[is.na(anth_biome)] <- -9999 # no data value is nan
+climate_zones[is.na(climate_zones)] <- -9999 # no data value is nan
 elevation_na[is.na(elevation_na)] <- -9999
 lndcvr_na[is.na(lndcvr_na)] <- -9999
 # precip[is.na(precip)] <- -9999
@@ -274,7 +333,7 @@ soil_phh2o_5_15[is.na(soil_phh2o_5_15)] <- -9999
 soil_temp_0_5[is.na(soil_temp_0_5)] <- -9999
 soil_temp_5_15[is.na(soil_temp_5_15)] <- -9999
 # tavg_mar_jun[is.na(tavg_mar_jun)] <- -9999
-watersheds[is.na(watersheds)] <- -9999
+watersheds[is.na(watersheds)] <- -2147483648
 
 # since there are multiple layers in precip and tavg_mar_jun,
 # may need to use below code:
