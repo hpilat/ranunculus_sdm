@@ -9,6 +9,8 @@ na_bound <- vect(na_bound)
 temprast <- rast(na_bound, ncols = 12247, nrows = 8024)
 na_bound_rast <- rasterize(na_bound, temprast)
 
+# write empty raster to file
+na_bound_rast <- writeRaster(na_bound_rast, filename = "data/na_bound_rast.tif")
 
 ## Occurrence Data ##
 
