@@ -1,4 +1,36 @@
 ## Spatial Extent ##
+
+# Skeetchestn territory:
+# SNRC provided shapefile of Skeetchestn traditional territory
+# Vectorize this shapefile so it can be rasterized
+skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
+# reproject to WGS84
+skeetch_vect <- project(skeetch_vect, "EPSG:4326")
+precip_skeetch <- crop(precip, skeetch_vect)
+# dimensions of precip_skeetch are nrow = 132 and ncol = 142, which we'll use 
+    # for setting the dimensions of the temporary raster
+    # this may change when increasing the resolution for Skeetch-specific data
+precip_skeetch <- mask(precip_skeetch, skeetch_vect)
+
+
+# Create an empty template raster for inputting as a basemap into tidysdm
+# Unsure what # of columns to use here
+temprast <- rast(skeetch_vect, ncols = 142, nrows = 132)
+skeetch_rast <- rasterize(skeetch_vect, temprast)
+# will use higher resolution data for Skeetch extent
+
+# reproject skeetch_rast to WGS 84
+skeetch_rast <- project(skeetch_rast, "EPSG:4326")
+
+# resample skeetch_rast to different resolution
+skeetch_rast <- resample(skeetch_rast, soil_temp_0_5)
+
+# mask skeetch_rast so all cells outside of boundary are NA
+skeetch_rast <- mask(skeetch_rast, skeetch_vect)
+
+
+
+# North American extent (west coast to continental divide)
 # new geographic extent created in continental_divide.Rmd
 
 na_bound <- read_sf("data/raw/continental_divide_buffer_boundary.shp")
@@ -6,11 +38,11 @@ na_bound <- vect(na_bound)
 # na_extent <- ext(na_bound)
 # create an empty raster based on study extent in order to rasterize na_bound
   # to use as a basemap for TidySDM
-temprast <- rast(na_bound, ncols = 12247, nrows = 8024)
-na_bound_rast <- rasterize(na_bound, temprast)
+# temprast <- rast(na_bound, ncols = 12247, nrows = 8024)
+# na_bound_rast <- rasterize(na_bound, temprast)
 
 # write empty raster to file
-na_bound_rast <- writeRaster(na_bound_rast, filename = "data/na_bound_rast.tif")
+# na_bound_rast <- writeRaster(na_bound_rast, filename = "data/na_bound_rast.tif")
 
 ## Occurrence Data ##
 
