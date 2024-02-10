@@ -1,5 +1,6 @@
 ## Spatial Extent ##
 
+
 # Skeetchestn territory:
 # SNRC provided shapefile of Skeetchestn traditional territory
 # Vectorize this shapefile so it can be rasterized
