@@ -36,14 +36,17 @@ skeetch_rast <- mask(skeetch_rast, skeetch_vect)
 
 na_bound <- read_sf("data/raw/continental_divide_buffer_boundary.shp")
 na_bound <- vect(na_bound)
-# na_extent <- ext(na_bound)
+
 # create an empty raster based on study extent in order to rasterize na_bound
   # to use as a basemap for TidySDM
 # temprast <- rast(na_bound, ncols = 12247, nrows = 8024)
 # na_bound_rast <- rasterize(na_bound, temprast)
 
 # write empty raster to file
-# na_bound_rast <- writeRaster(na_bound_rast, filename = "data/na_bound_rast.tif")
+#na_bound_rast <- writeRaster(na_bound_rast, filename = "data/processed/na_bound_rast.tif")
+
+# read in na_bound_rast
+na_bound_rast <- rast("data/processed/na_bound_rast.tif")
 
 ## Occurrence Data ##
 
@@ -181,38 +184,6 @@ elevation_na <- rast("data/processed/elevation_na.tif")
 # resample landcover BC data to change resolution
 # lndcvr_na <- resample(lndcvr_na, soil_temp_0_5)
 
-# create a list of the category names in lndcvr_na
-# lndcvr_cat <- c("Temperate or sub-polar needleleaf forest", 
-               #  "Sub-polar or taiga needleleaf forest", 
-               #  "Tropical or sub-tropical broadleaf evergreen forest", 
-               #  "Tropical or sub-tropical broadleaf deciduous forest", 
-               #  "Temperate or sub-polar broadleaf deciduous forest", 
-               #  "Mixed forest", 
-               #  "Tropical or sub-tropical shrubland", 
-               #  "Temperate or sub-polar shrubland", 
-               #  "Tropical or sub-tropical grassland", 
-               #  "Temperate or sub-polar grassland", 
-               #  "Sub-polar or polar shrubland-lichen-moss", 
-               #  "Sub-polar or polar grassland-lichen-moss", 
-               #  "Sub-polar or polar barren-lichen-moss", 
-               #  "Wetland", 
-               #  "Cropland", 
-               #  "Barren lands", 
-               #  "Urban and built-up", 
-               #  "Water", 
-               #  "Snow and ice")
-
-# lndcvr_char <- sample(lndcvr_cat, 19, replace = FALSE)
-# lndcvr_fact <- factor(lndcvr_char, levels = lndcvr_cat)
-# lndcvr_n_america <- rast(nrows = 8024,
-                       #  ncol = 12247,
-                       #  xmin = -179.25, 
-                       #  xmax = -77.19167, 
-                       #  ymin = 5.383333, 
-                       #  ymax = 72.25,
-                       #  vals = lndcvr_fact) 
-
-
 # create file of processed landcover data for faster re-use
 # lndcvr_na <- writeRaster(lndcvr_na, "data/processed/lndcvr_na.tif", overwrite = TRUE)
 
@@ -294,27 +265,180 @@ protect_area_OECM <- rast("data/processed/protect_area_OECM.tif")
 # read in protected areas IUCN data from file
 watersheds <- rast("data/processed/watersheds.tif")
 
-
 # create a multilayer raster of the predictor variables
 # can do up to 16 different layers 
   # therefore, likely have to leave out precip and tavg_mar_jun, since they have
   # 12 and 4 layers, respectively
-predictors_multirast <- c(anth_biome, 
+# predictors_multirast <- c(anth_biome, 
+                        #  climate_zones, 
+                        #  elevation_na, 
+                        #  lndcvr_na, 
+                          # precip, 
+                        #  protect_area_IUCN, 
+                        #  protect_area_OECM, 
+                        #  soil_phh2o_0_5, 
+                        #  soil_phh2o_5_15, 
+                        #  soil_temp_0_5, 
+                        #  soil_temp_5_15, 
+                          # tavg_mar_jun, 
+                        #  watersheds)
+
+# mask the multilayer raster so the values outside of na_bound are NA
+# predictors_multirast <- mask(predictors_multirast, na_bound)
+
+# want to change the names of the columns/layers to match our objects
+names(anth_biome) <- "anth_biome"
+names(climate_zones) <- "climate_zones"
+names(elevation_na) <- "elevation_na"
+names(lndcvr_na) <- "lndcvr_na"
+names(protect_area_IUCN) <- "protect_area_IUCN"
+names(protect_area_OECM) <- "protect_area_OECM"
+names(soil_phh2o_0_5) <- "soil_phh2o_0_5"
+names(soil_phh2o_5_15) <- "soil_phh2o_5_15"
+names(soil_temp_0_5) <- "soil_temp_0_5"
+names(soil_temp_5_15) <- "soil(soil_temp_5_15"
+names(watersheds) <- "watersheds"
+
+# tidysdm may require rasters to be numeric, so convert categorical rasters
+# so categories are coded as numbers
+# need to figure out below code:
+anth_biome <-as.numeric(anth_biome, index = 1:nlevels(anth_biome))
+climate_zones <- as.numeric(climate_zones, index = 1:nlevels(climate_zones))
+protect_area_IUCN <- as.numeric(protect_area_IUCN, index = 1:nlevels(protect_area_IUCN))
+protect_area_OECM <- as.numeric(protect_area_OECM, index = 1:nlevels(protect_area_OECM))
+watersheds <- as.numeric(watersheds, index = 1:nlevels(watersheds))
+
+# now create a multilayer spatraster 
+predictors_multi <- c(anth_biome, 
                           climate_zones, 
                           elevation_na, 
                           lndcvr_na, 
-                          # precip, 
                           protect_area_IUCN, 
                           protect_area_OECM, 
                           soil_phh2o_0_5, 
                           soil_phh2o_5_15, 
                           soil_temp_0_5, 
-                          soil_temp_5_15, 
-                          # tavg_mar_jun, 
-                          watersheds)
+                          soil_temp_5_15)  
+                         # watersheds
 
 # mask the multilayer raster so the values outside of na_bound are NA
-predictors_multirast <- mask(predictors_multirast, na_bound)
+predictors_multi <- mask(predictors_multi, na_bound)
+
+
+
+
+## below code may not be necessary ##
+
+
+# want to change the names of the columns/layers to match our objects
+names(anth_biome_num) <- "anth_biome_num"
+names(climate_zones_num) <- "climate_zones_num"
+names(elevation_na) <- "elevation_na"
+names(lndcvr_na) <- "lndcvr_na"
+names(protect_area_IUCN_num) <- "protect_area_IUCN_num"
+names(protect_area_OECM_num) <- "protect_area_OECM_num"
+names(soil_phh2o_0_5) <- "soil_phh2o_0_5"
+names(soil_phh2o_5_15) <- "soil_phh2o_5_15"
+names(soil_temp_0_5) <- "soil_temp_0_5"
+names(soil_temp_5_15) <- "soil(soil_temp_5_15"
+names(watersheds_num) <- "watersheds_num"
+
+# tested out the below code to get categorical rasters to be numeric
+climate_zones_levels <- levels(climate_zones)
+cats(climate_zones)
+climate_zones <- dplyr::select(climate_zones)
+climate_zones_df <- as.data.frame(climate_zones, row.names = NULL, xy = TRUE)
+levels(climate_zones)
+activeCat(climate_zones) <- 1:nlevels(climate_zones)
+# readout of categories and # assigned to them
+
+
+# may need to remove NA values from layers in multilayer raster
+# entire multilayer raster:
+# for(i in 1:11){
+# predictors_multirast[!is.na(predictors_multirast[,,i])]
+# }
+# summary(predictors_multirast)
+# ^ code ran with no errors but summary(predictors_multirast) shows there are still NAs
+
+# try assigning NAs to -9999 for predictors_multi_num just to see if it'll work in tidysdm code
+# downside is -9999 skews summary stats badly
+# for(i in 1:11){
+  # predictors_multi_num[is.na(predictors_multi_num[,,i])] <- -9999
+  # } 
+# ^ too large to process, caused R to abort
+
+# try assigning -9999 to NA values in just one layer
+anth_biome_num[is.na(anth_biome_num)] <- -9999
+summary(anth_biome_num)
+# ^ it worked, try for other layers
+
+climate_zones_num[is.na(climate_zones_num)] <- -9999
+summary(climate_zones_num)
+
+elevation_na[is.na(elevation_na)] <- -9999
+summary(elevation_na)
+
+lndcvr_na[is.na(lndcvr_na)] <- -9999
+summary(lndcvr_na)
+
+protect_area_IUCN_num[is.na(protect_area_IUCN_num)] <- -9999
+summary(protect_area_IUCN_num)
+
+protect_area_OECM_num[is.na(protect_area_OECM_num)] <- -9999
+summary(protect_area_OECM_num)
+
+soil_phh2o_0_5[is.na(soil_phh2o_0_5)] <- -9999
+summary(soil_phh2o_0_5)
+
+soil_phh2o_5_15[is.na(soil_phh2o_5_15)] <- -9999
+summary(soil_phh2o_5_15)
+
+soil_temp_0_5[is.na(soil_temp_0_5)] <- -9999
+summary(soil_temp_0_5)
+
+soil_temp_5_15[is.na(soil_temp_5_15)] <- -9999
+summary(soil_temp_5_15)
+
+watersheds_num[is.na(watersheds_num)] <- -9999
+summary(watersheds_num)
+
+# now run the multilayer spatraster code again to see if there are still NAs: 
+predictors_multi_num <- c(anth_biome_num, 
+                          climate_zones_num, 
+                          elevation_na, 
+                          lndcvr_na, 
+                          protect_area_IUCN_num, 
+                          protect_area_OECM_num, 
+                          soil_phh2o_0_5, 
+                          soil_phh2o_5_15, 
+                          soil_temp_0_5, 
+                          soil_temp_5_15,  
+                          watersheds_num)
+summary(predictors_multi_num)
+# still NAs, but plug into tidysdm code anyway to see if changing names of layers helped with issue
+  # update: changing layer names helped with violin plots
+  # but still need to get rid of NA values somehow
+
+predictors_multi_no_na <- rast(predictors_multi_no_na)
+  # looks like no NA values (yay)
+
+
+# could also change names of layers by calling them through multiraster
+names(predictors_multi_no_na)[1] <- "anth_biome_num"
+names(predictors_multi_no_na)[2] <- "climate_zones_num"
+names(predictors_multi_no_na)[3] <- "elevation_na"
+names(predictors_multi_no_na)[4] <- "lndcvr_na"
+names(predictors_multi_no_na)[5] <- "protect_area_IUCN_num"
+names(predictors_multi_no_na)[6] <- "protect_area_OECM_num"
+names(predictors_multi_no_na)[7] <- "soil_phh2o_0_5"
+names(predictors_multi_no_na)[8] <- "soil_phh2o_5_15"
+names(predictors_multi_no_na)[9] <- "soil_temp_0_5"
+names(predictors_multi_no_na)[10] <- "soil_temp_5_15"
+names(predictors_multi_no_na)[11] <- "watersheds"
+# ^ too much memory required apparently, try on individual objects
+
+
 
 
 # since there are multiple layers in precip and tavg_mar_jun,

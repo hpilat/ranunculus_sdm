@@ -91,6 +91,10 @@ ggplot() +
   geom_spatraster(data = land_mask, aes(fill = land_mask_1985)) +
   geom_sf(data = ran_occ_thin, aes(col = class))
 
+
+### Variable Selection ###
+
+
 # see which variables are available from WorldClim dataset
 # 10 and 5m resolution available through pastclim
 climate_vars <- pastclim::get_vars_for_dataset("WorldClim_2.1_10m")
