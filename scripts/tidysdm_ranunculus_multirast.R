@@ -80,7 +80,7 @@ ggplot() +
 # ran_occ_thin will then have presences and pseudoabsences
 set.seed(1234567)
 ran_occ_th <- sample_pseudoabs(ran_occ_th, 
-                               n = 10 * nrow(ran_occ_thin), 
+                               n = 10 * nrow(ran_occ_th), 
                                raster = na_bound_rast, 
                                method = c("dist_min", km2m(50))
                                )
@@ -117,20 +117,15 @@ summary(ran_occ_th_no_NA)
   # unable to see plots
 # after changing layer names, able to see plots. 11 warnings
 ran_occ_th_no_NA %>% plot_pres_vs_bg(class)
-# try removing NA values?
-  # update: assigning -9999 to NA values skews these plots really badly (as expected)
-# ran_occ_thin_NA <- ran_occ_thin[!is.na(ran_occ_thin$), ]
+
 
 # want to select variables for which presences use values different from 
   # the background/pseudoabsences
 # rank the variables based on the overlap of the respective density plots
 ran_occ_th_no_NA %>% dist_pres_vs_bg(class)
-# above code wouldn't run, "Error in density.default(X[[i]], ...) : non-finite 'from'"
-  # probably having NA values is the issue here
-  # set NA values in multiraster to -9999 and the code ran
 
-# focus on variables with at least 30% of non-overlapping distribution between presences and pseudoabsences
-  # this will remove a lot, maybe try 25% later?
+# focus on variables with at least 30% of non-overlapping distribution between 
+  # presences and pseudoabsences
 vars_to_keep <- ran_occ_th_no_NA %>% dist_pres_vs_bg(class)
 vars_to_keep <- names(vars_to_keep[vars_to_keep > 0.3])
 ran_occ_th <- ran_occ_th_no_NA %>% select(all_of(c(vars_to_keep, "class")))
@@ -138,18 +133,22 @@ vars_to_keep
 
 # tutorial has a list of variables suggested by the literature to be important
   # in determining the distribution of the species
-names(predictors_multi)
-# below code isn't working in lines 148 and 151 
-suggested_vars <- c("anth_biome", "Climate", "elevation_na", "lndcvr_na", 
-                    "TYPE_PA", "TYPE_PA", "soil_phh2o_0_5", "soilphh2o_5_15", 
-                    "soil_temp_0_5", "soil(soil_temp_5_15")
+# below code isn't working in the commands following
+# suggested_vars <- c("anth_biome", "Climate", "elevation_na", "lndcvr_na", 
+                   #  "soil_phh2o_0_5", "soilphh2o_5_15", 
+                   #  "soil_temp_0_5", "soil_temp_5_15")
+
+suggested_vars <- names(predictors_multi) # this actually worked with pairs command
 
 # inspect the variables for collinearity
 pairs(predictors_multi[[suggested_vars]])
 # subset to variables below 0.8 Pearson's correlation coefficient
-# start with 0.7 first <-  was the same list as 8, so going with 8
-ran_occ_th <- ran_occ_th[[suggested_vars]] # suggested_vars part causes an error
-predictors_uncorr <- filter_high_cor(predictors_multi, cutoff = 0.8, names = TRUE)
+# start with 0.7 first (as done in tutorial)
+# predictors_multi = SpatRaster with predictor data (all numeric, no NAs)
+predictors <- predictors_multi[[suggested_vars]]
+# below code was taking forever to run, but no delays in the bioclim code
+predictors_uncorr <- filter_high_cor(predictors_multi, cutoff = 0.7, 
+                                     verbose = FALSE, names = TRUE, to_keep = NULL)
 predictors_uncorr
 
 # remove highly correlated predictors

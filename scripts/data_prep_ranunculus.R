@@ -296,7 +296,7 @@ names(protect_area_OECM) <- "protect_area_OECM"
 names(soil_phh2o_0_5) <- "soil_phh2o_0_5"
 names(soil_phh2o_5_15) <- "soil_phh2o_5_15"
 names(soil_temp_0_5) <- "soil_temp_0_5"
-names(soil_temp_5_15) <- "soil(soil_temp_5_15"
+names(soil_temp_5_15) <- "soil_temp_5_15"
 names(watersheds) <- "watersheds"
 
 # tidysdm may require rasters to be numeric, so convert categorical rasters
