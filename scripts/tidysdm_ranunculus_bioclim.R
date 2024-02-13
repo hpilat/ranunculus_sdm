@@ -12,7 +12,6 @@ library(overlapping)
 # read in Ranunculus glaberrimus presence dataframe, 
   # dataframe with ID, latitude, and longitude columns
 ran_occ_download # tibble/dataframe
-ran_occ # spatvector
 
 # plot the presences on a map to visualize them
 # cast coordinates into an sf object and set its CRS to WGS84
@@ -148,8 +147,8 @@ vars_uncor
 
 # try thresholding all 19 variables
 # vars_to_keep <- c("bio01", "bio02", "bio03", "bio04", "bio05", "bio06", "bio07", 
-                  "bio08", "bio09", "bio10", "bio11", "bio12", "bio13", "bio14", 
-                  "bio15", "bio16", "bio17", "bio18", "bio19", "altitude")
+                 #  "bio08", "bio09", "bio10", "bio11", "bio12", "bio13", "bio14", 
+                 #  "bio15", "bio16", "bio17", "bio18", "bio19", "altitude")
 
 # climate_present <- climate_present[[vars_to_keep]]
 # vars_uncor_all <- filter_high_cor(climate_present, cutoff = 0.7)

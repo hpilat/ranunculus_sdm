@@ -142,15 +142,80 @@ suggested_vars <- names(predictors_multi) # this actually worked with pairs comm
 
 # inspect the variables for collinearity
 pairs(predictors_multi[[suggested_vars]])
+
+# need a smaller sample to calculate collinearity between variables
+nrow(predictors_multi) # 8024 rows 
+# try sample size of 5000 cells
+predictors_sample <- terra::spatSample(predictors_multi, size = 5000, 
+                                       method = "random", replace = FALSE, 
+                                       na.rm = FALSE, as.raster = TRUE,
+                                       values = TRUE, cells = FALSE, xy = TRUE)
+
+
 # subset to variables below 0.8 Pearson's correlation coefficient
 # start with 0.7 first (as done in tutorial)
 # predictors_multi = SpatRaster with predictor data (all numeric, no NAs)
-predictors <- predictors_multi[[suggested_vars]]
+predictors_sample <- predictors_sample[[suggested_vars]]
 # below code was taking forever to run, but no delays in the bioclim code
-predictors_uncorr <- filter_high_cor(predictors_multi, cutoff = 0.7, 
+predictors_uncorr <- filter_high_cor(predictors_sample, cutoff = 0.7, 
                                      verbose = FALSE, names = TRUE, to_keep = NULL)
 predictors_uncorr
 
 # remove highly correlated predictors
-ran_occ_th <- ran_occ_th %>% select(all_of(c(predictors_uncorr, "class")))
-predictors_multi_num <- predictors_multi_num[[predictors_uncorr]]
+ran_occ_th <- ran_occ_th %>% select(all_of(c(predictors_uncorr)))
+predictors_multi <- predictors_multi[[predictors_uncorr]]
+
+
+
+#### Fit the model by cross-validation ####
+
+
+
+# use a recipe to define how to handle our dataset
+# need to define the formula (class is the outcome, all other variables are predictors)
+# for sf objects, geometry is auto-replaced by X and Y and assigned as coords, therefore not used as predictors
+ran_occ_recipe <- recipe(ran_occ_th, formula = class ~ .)
+ran_occ_recipe
+
+# tidymodels assumes the level of interest for the response (presences) is the reference level
+# confirm the data are correctly formatted
+ran_occ_th %>% check_sdm_presence(class)
+
+# build a workflow_set of different models, defining which hyperparameters we want to tune
+# for most commonly used models, tidysdm auto chooses the most important parameters
+ran_occ_models <- 
+  workflow_set(
+    preproc = list(default = ran_occ_recipe), 
+    models = list(
+      glm = sdm_spec_glm(), # standard GLM specs
+      rf = sdm_spec_rf(), # rf specs with tuning
+      gbm = sdm_spec_boost_tree(), # boosted tree specs with tuning
+      maxent = sdm_spec_maxent() # maxent specs with tuning
+    ), 
+    # make all combos of proporc and models:
+    cross = TRUE
+    ) %>% 
+  # tweak controls to store information needed later to create the ensemble
+  option_add(control = control_ensemble_grid())
+
+# set up spatial block cross-validation to tune and assess models:
+# 80:20 split with 5 folds (v = 5) (supported by literature review)
+set.seed(100)
+ran_occ_cv <- spatial_block_cv(ran_occ_th, v = 5)
+autoplot(ran_occ_cv)
+
+# use block CV folds to tune and assess models
+  # tutorial uses 3 combos of hyperparameters and says this is far too few for real life
+  # 10 combos of hyperparameters = ~ 3 mins computation time
+  # 20 combos of hyperparameters = ~ 3 mins computation time
+set.seed(1234567)
+ran_occ_models <- 
+  ran_occ_models %>% 
+  workflow_map("tune_grid", 
+               resamples = ran_occ_cv, grid = 20, # attempting 10 combos of hyperparameters
+               metrics = sdm_metric_set(), verbose = TRUE
+               ) 
+
+# want workflow_set to correctly detect no tuning parameters for GLM
+# inspect performance of models:
+autoplot(ran_occ_models)
