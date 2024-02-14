@@ -313,8 +313,8 @@ predictors_multi <- c(anth_biome,
                           climate_zones, 
                           elevation_na, 
                           lndcvr_na, 
-                          protect_area_IUCN, 
-                          protect_area_OECM, 
+                        # protect_area_IUCN, 
+                        # protect_area_OECM, 
                           soil_phh2o_0_5, 
                           soil_phh2o_5_15, 
                           soil_temp_0_5, 
@@ -369,76 +369,59 @@ activeCat(climate_zones) <- 1:nlevels(climate_zones)
 # ^ too large to process, caused R to abort
 
 # try assigning -9999 to NA values in just one layer
-anth_biome_num[is.na(anth_biome_num)] <- -9999
-summary(anth_biome_num)
+# anth_biome_num[is.na(anth_biome_num)] <- -9999
+# summary(anth_biome_num)
 # ^ it worked, try for other layers
 
-climate_zones_num[is.na(climate_zones_num)] <- -9999
-summary(climate_zones_num)
+# climate_zones_num[is.na(climate_zones_num)] <- -9999
+# summary(climate_zones_num)
 
-elevation_na[is.na(elevation_na)] <- -9999
-summary(elevation_na)
+# elevation_na[is.na(elevation_na)] <- -9999
+# summary(elevation_na)
 
-lndcvr_na[is.na(lndcvr_na)] <- -9999
-summary(lndcvr_na)
+# lndcvr_na[is.na(lndcvr_na)] <- -9999
+# summary(lndcvr_na)
 
-protect_area_IUCN_num[is.na(protect_area_IUCN_num)] <- -9999
-summary(protect_area_IUCN_num)
+# protect_area_IUCN_num[is.na(protect_area_IUCN_num)] <- -9999
+# summary(protect_area_IUCN_num)
 
-protect_area_OECM_num[is.na(protect_area_OECM_num)] <- -9999
-summary(protect_area_OECM_num)
+# protect_area_OECM_num[is.na(protect_area_OECM_num)] <- -9999
+# summary(protect_area_OECM_num)
 
-soil_phh2o_0_5[is.na(soil_phh2o_0_5)] <- -9999
-summary(soil_phh2o_0_5)
+# soil_phh2o_0_5[is.na(soil_phh2o_0_5)] <- -9999
+# summary(soil_phh2o_0_5)
 
-soil_phh2o_5_15[is.na(soil_phh2o_5_15)] <- -9999
-summary(soil_phh2o_5_15)
+# soil_phh2o_5_15[is.na(soil_phh2o_5_15)] <- -9999
+# summary(soil_phh2o_5_15)
 
-soil_temp_0_5[is.na(soil_temp_0_5)] <- -9999
-summary(soil_temp_0_5)
+# soil_temp_0_5[is.na(soil_temp_0_5)] <- -9999
+# summary(soil_temp_0_5)
 
-soil_temp_5_15[is.na(soil_temp_5_15)] <- -9999
-summary(soil_temp_5_15)
+# soil_temp_5_15[is.na(soil_temp_5_15)] <- -9999
+# summary(soil_temp_5_15)
 
-watersheds_num[is.na(watersheds_num)] <- -9999
-summary(watersheds_num)
+# watersheds_num[is.na(watersheds_num)] <- -9999
+# summary(watersheds_num)
 
 # now run the multilayer spatraster code again to see if there are still NAs: 
-predictors_multi_num <- c(anth_biome_num, 
-                          climate_zones_num, 
-                          elevation_na, 
-                          lndcvr_na, 
-                          protect_area_IUCN_num, 
-                          protect_area_OECM_num, 
-                          soil_phh2o_0_5, 
-                          soil_phh2o_5_15, 
-                          soil_temp_0_5, 
-                          soil_temp_5_15,  
-                          watersheds_num)
-summary(predictors_multi_num)
+# predictors_multi_num <- c(anth_biome_num, 
+                          # climate_zones_num, 
+                          # elevation_na, 
+                          # lndcvr_na, 
+                          # protect_area_IUCN_num, 
+                          # protect_area_OECM_num, 
+                          # soil_phh2o_0_5, 
+                          # soil_phh2o_5_15, 
+                          # soil_temp_0_5, 
+                          # soil_temp_5_15,  
+                          # watersheds_num)
+# summary(predictors_multi_num)
 # still NAs, but plug into tidysdm code anyway to see if changing names of layers helped with issue
   # update: changing layer names helped with violin plots
   # but still need to get rid of NA values somehow
 
-predictors_multi_no_na <- rast(predictors_multi_no_na)
+# predictors_multi_no_na <- rast(predictors_multi_no_na)
   # looks like no NA values (yay)
-
-
-# could also change names of layers by calling them through multiraster
-names(predictors_multi_no_na)[1] <- "anth_biome_num"
-names(predictors_multi_no_na)[2] <- "climate_zones_num"
-names(predictors_multi_no_na)[3] <- "elevation_na"
-names(predictors_multi_no_na)[4] <- "lndcvr_na"
-names(predictors_multi_no_na)[5] <- "protect_area_IUCN_num"
-names(predictors_multi_no_na)[6] <- "protect_area_OECM_num"
-names(predictors_multi_no_na)[7] <- "soil_phh2o_0_5"
-names(predictors_multi_no_na)[8] <- "soil_phh2o_5_15"
-names(predictors_multi_no_na)[9] <- "soil_temp_0_5"
-names(predictors_multi_no_na)[10] <- "soil_temp_5_15"
-names(predictors_multi_no_na)[11] <- "watersheds"
-# ^ too much memory required apparently, try on individual objects
-
-
 
 
 # since there are multiple layers in precip and tavg_mar_jun,
