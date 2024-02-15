@@ -11,10 +11,18 @@ library(pastclim)
 library(ggplot2)
 library(overlapping)
 
+# North American extent (west coast to continental divide)
+# new geographic extent created in continental_divide.Rmd
+# read in na_bound_rast
+na_bound_rast <- rast("data/processed/na_bound_rast.tif")
+
+# read in multilayer raster with predictor data, created in
+  # 03_data_prep_ranunculus
+predictors_multi <- rast("data/processed/predictors_multi.tif")
+
 # read in Ranunculus glaberrimus presence dataframe, 
 # dataframe with ID, latitude, and longitude columns
 ran_occ_download # tibble/dataframe
-ran_occ # spatvector
 
 # plot the presences on a map to visualize them
 # cast coordinates into an sf object and set its CRS to WGS84
@@ -246,10 +254,9 @@ ran_ensemble %>% collect_metrics() # error said no collect_metric() exists for t
 
 # predictions using the ensemble
 # default is taking the mean of the predictions from each model
+# line below uses over 10GB of RAM
 prediction_present <- predict_raster(ran_ensemble, predictors_multi)
-  # above didn't run properly, error says all columns of new_data must have unique names
-  # noticed earlier that predicted areas has same column name for IUCN and OECMs
-names(predictors_multi$TYPE_PA) <- "protect_area_IUCN"
+
 ggplot() +
   geom_spatraster(data = prediction_present, aes (fill = mean)) +
   scale_fill_terrain_c() + # c for continuous
