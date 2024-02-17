@@ -264,7 +264,7 @@ ran_ensemble <- simple_ensemble() %>%
 ran_ensemble
 autoplot(ran_ensemble)
 collect_metrics(ran_ensemble) # need to update tidysdm version for this to work
-
+ran_ensemble_metrics <- collect_metrics(ran_ensemble)
 
 ## Projecting to the Present ##
 
@@ -445,6 +445,16 @@ change_area_present_to_2100 <- prediction_future_area_num - prediction_present_a
 
 
 
+# for a written explanation of variable importance:
+# using DALEX library, integrated with tidysdm
+# create an explainer object
+library(DALEX)
+explainer_ran_ensemble <- explain_tidysdm(ran_ensemble)
+vip_ensemble <- model_parts(explainer = explainer_ran_ensemble, 
+                            type = "variable_importance")
+vip_ensemble
+
+
 # marginal response curves can show the effect of a variable while keeping
   # all other variables at their mean
 # use step_profile() to create a new recipe for generating a dataset to make 
@@ -602,6 +612,8 @@ altitude_data <- altitude_data %>%
 
 ggplot(altitude_data, aes(x = altitude, y = pred)) +
   geom_point(alpha = .5, cex = 1)
+
+
 
 ## Repeated Ensembles ##
 
