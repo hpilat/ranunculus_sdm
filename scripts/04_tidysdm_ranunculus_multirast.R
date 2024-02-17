@@ -120,8 +120,8 @@ nrow(ran_occ_th) # 15455
   # but I have NA values from predictors_multi
 summary(ran_occ_th) # still lots of NAs, but not as many as predictors_multirast
 
-ran_occ_th_no_NA <- na.omit(ran_occ_th)
-nrow(ran_occ_th_no_NA) # 12238, 3217 rows removed
+ran_occ_th <- na.omit(ran_occ_th)
+nrow(ran_occ_th) # 12238, 3217 rows removed
 
 # ran_occ_th contains NA values (counterpart in tutorial does not)
   # attempt to remove rows with NA values:
@@ -183,7 +183,7 @@ predictors_uncorr
   # need to retain class column (not in original tutorial code)
 ran_occ_th <- ran_occ_th %>% select(all_of(c(predictors_uncorr, "class")))
 
-## changed code below from predictors_multi[[predictors_uncorr]]
+## or use predictors_sample[[predictors_uncorr]]
 predictors_multi <- predictors_multi[[predictors_uncorr]]
 predictors_multi
 
@@ -213,7 +213,7 @@ ran_occ_models <-
       gbm = sdm_spec_boost_tree(), # boosted tree specs with tuning
       maxent = sdm_spec_maxent() # maxent specs with tuning
     ), 
-    # make all combos of proporc and models:
+    # make all combos of preproc and models:
     cross = TRUE
     ) %>% 
   # tweak controls to store information needed later to create the ensemble
@@ -283,6 +283,11 @@ prediction_present_AUC <- predict_raster(ran_ensemble, predictors_multi,
                                          fun = "median"
                                          )
 
+prediction_present_AUC <- predict_raster(ran_ensemble, predictors_multi,
+                                         metric_thresh = c("roc_auc", 0.8),
+                                         fun = "median"
+                                         )
+
 ggplot() +
   geom_spatraster(data = prediction_present_AUC, aes(fill = median)) +
   scale_fill_terrain_c() +
@@ -303,11 +308,3 @@ prediction_present_binary <- predict_raster(ran_ensemble,
 ggplot() +
   geom_spatraster(data = prediction_present_binary, aes(fill = binary_mean)) +
   geom_sf(data= ran_occ_th %>% filter(class == "presence"))
-
-
-
-#### Projecting to the Future ####
-
-
-
-download_dataset("WorldClim_2.1_HadGem3-GC31-LL_ssp245_10m")

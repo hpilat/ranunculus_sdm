@@ -70,6 +70,7 @@ ran_occ_vect <- vect(ran_occ, geom = c("decimalLongitude", "decimalLatitude"),
 ran_occ <- crop(ran_occ_vect, na_bound)
 ran_occ
 
+# create an sf object from the cropped SpatVector, to be used as input for tidysdm
 ran_occ_sf <- st_as_sf(ran_occ, 
                        coords = c("decimalLongitude", "decimalLatitude"))
 ran_occ_sf
