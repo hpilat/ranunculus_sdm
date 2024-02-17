@@ -1,4 +1,9 @@
-# tidysdm tutorial
+# Following tidysdm tutorial, we input Ranunculus glaberrimus occurrence records 
+  # and WorldClim predictors into the tidysdm pipeline
+# Please first run scripts in the following order: 
+  # 01_data_download_ranunculus.R
+  # 02_continental_divide.Rmd
+  # 03_data_prep_ranunculus.R
 
 # dir.create("outputs/")
 
@@ -14,8 +19,8 @@ library(overlapping)
 # read in na_bound_rast
 na_bound_rast <- rast("data/processed/na_bound_rast.tif")
 
-na_bound <- read_sf("data/raw/continental_divide_buffer_boundary.shp")
-na_bound <- vect(na_bound)
+na_bound_sf <- read_sf("data/raw/continental_divide_buffer_boundary.shp")
+na_bound <- vect(na_bound_sf)
 
 # read in Ranunculus glaberrimus presence dataframe, 
 # dataframe with ID, latitude, and longitude columns
@@ -176,10 +181,11 @@ suggested_vars <- names(climate_present) # this actually worked with pairs comma
 climate_present <- climate_present[[suggested_vars]]
 
 # below code was taking forever to run, but no delays in the bioclim code
-vars_uncorr <- filter_high_cor(climate_present, cutoff = 0.7, 
+vars_uncorr <- filter_high_cor(climate_present, cutoff = 0.8, 
                                      verbose = FALSE, names = TRUE, to_keep = NULL)
 vars_uncorr
-# now left with 7 predictor variables
+# now left with 7 predictor  for 0.7 threshold
+# left with 10 predictors for 0.8 threshold (Feb. 17th run)
 
 # select uncorrelated variables
 ran_occ_thin <- ran_occ_thin %>% select(all_of(c(vars_uncorr, "class")))
@@ -273,33 +279,65 @@ ggplot() +
 # subset the model to only use the best models, based on AUC
 # set threshold of 0.8 for AUC
 # take the median of the available model predictions (mean is the default)
-prediction_present_boyce <- predict_raster(ran_ensemble, climate_present, 
+prediction_present_best_bioclim <- predict_raster(ran_ensemble, climate_present, 
                                            metric_thresh = c("roc_auc", 0.8), 
                                            fun= "median")
 
 ggplot() +
-  geom_spatraster(data = prediction_present_boyce, aes(fill = median)) +
+  geom_spatraster(data = prediction_present_best_bioclim, aes(fill = median)) +
   scale_fill_terrain_c() + # c = continuous
   geom_sf(data = ran_occ_thin %>% filter(class == "presence"))
 # if plot doesn't change much, models are consistent
 # model gives us probability of occurrence
 # can convert to binary predictions (present vs absence)
-# error in code below:
-ran_ensemble_binary <- calib_class_thresh(ran_ensemble, 
-                                          class_thresh = "roc_auc")
 
-# error in code below:
+ran_ensemble_binary <- calib_class_thresh(ran_ensemble, 
+                                          class_thresh = "tss_max"
+                                          )
+
 prediction_present_binary <- predict_raster(ran_ensemble_binary, 
                                             climate_present, 
                                             type = "class", 
-                                            class_thresh = c("roc_auc"))
+                                            class_thresh = c("tss_max"))
+prediction_present_binary
 
 ggplot() +
   geom_spatraster(data = prediction_present_binary, aes(fill = binary_mean)) +
   geom_sf(data = ran_occ_thin %>% filter(class == "presence"))
 
+# turn presence into polygon so we can calculate suitable area
+# first need to filter out presence cells from raster
+prediction_present_pres <- prediction_present_binary %>% 
+  filter(binary_mean == "presence")
 
-## Projecting to the Future ##
+# repeat for absences? May not be entirely useful information
+
+# vectorize raster to get a polygon around presences
+# need to turn raster into data.frame first
+prediction_present_pres <- as.polygons(prediction_present_pres)
+
+# now turn prediction_present_pres polygons into sf object
+prediction_present_sf <- st_as_sf(prediction_present_pres)
+
+crs(prediction_present_sf) # WGS84
+
+# reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
+prediction_present_area <- st_transform(prediction_present_sf, "EPSG:3005")
+prediction_present_area <- st_set_crs(prediction_present_sf, "EPSG:3005")
+prediction_present_area <- st_area(prediction_present_sf) # 1.48e+12 m^2
+# convert from m^2 to km^2
+prediction_present_area <- st_area(prediction_present_sf)/1000000
+prediction_present_area <- units::set_units(st_area(prediction_present_sf), km^2) 
+  # 1 478 904 km^2 of suitable habitat
+
+# divide predicted present area by total study area to get proportion
+proportion_suitable_present <- prediction_present_area/na_bound_area
+
+
+
+#### Projecting to the Future ####
+
+
 
 # full list of future projections from WorldClim:
 help("WorldClim_2.1")
@@ -347,12 +385,104 @@ ggplot() +
   scale_fill_terrain_c()
 
 
-## Visualizing the Contribution of Individual Variables ##
+# convert predictions to binary (presence/absence)
+# if plot doesn't change much, models are consistent
+# model gives us probability of occurrence
+# can convert to binary predictions (present vs absence)
+
+ran_ensemble_binary <- calib_class_thresh(ran_ensemble, 
+                                          class_thresh = "tss_max"
+                                          )
+
+prediction_future_binary <- predict_raster(ran_ensemble_binary, 
+                                            climate_future, 
+                                            type = "class", 
+                                            class_thresh = c("tss_max"))
+prediction_future_binary
+
+ggplot() +
+  geom_spatraster(data = prediction_future_binary, aes(fill = binary_mean)) +
+  geom_sf(data = ran_occ_thin %>% filter(class == "presence"))
+
+# turn presence into polygon so we can calculate suitable area
+# first need to filter out presence cells from raster
+prediction_future_pres <- prediction_future_binary %>% 
+  filter(binary_mean == "presence")
+
+# repeat for absences? May not be entirely useful information
+
+# vectorize raster to get a polygon around presences
+# need to turn raster into data.frame first
+prediction_future_pres <- as.polygons(prediction_future_pres)
+
+# now turn prediction_present_pres polygons into sf object
+prediction_future_sf <- st_as_sf(prediction_future_pres)
+
+crs(prediction_future_sf) # WGS84
+
+# reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
+prediction_future_area <- st_transform(prediction_future_sf, "EPSG:3005")
+prediction_future_area <- st_set_crs(prediction_future_sf, "EPSG:3005")
+prediction_future_area <- st_area(prediction_future_sf) # 1.15e+12 m^2
+# convert from m^2 to km^2
+prediction_future_area <- st_area(prediction_future_sf)/1000000
+prediction_future_area <- units::set_units(st_area(prediction_future_sf), km^2) 
+# 1 150 023 km^2 of suitable habitat
+
+# divide predicted present area by total study area to get proportion
+proportion_suitable_future <- prediction_future_area/na_bound_area
+
+# now calculate difference between suitable habitat in the present and 2081-2100
+# first need to convert area from class "units" to numeric
+prediction_present_area_num <- as.numeric(prediction_present_area)
+prediction_future_area_num <- as.numeric(prediction_future_area)
+change_area_present_to_2100 <- prediction_future_area_num - prediction_present_area_num
+  # -328 881.059 km^2 change in suitable habitat
+
+
+
+#### Visualizing the Contribution of Individual Variables ####
+
+
 
 # marginal response curves can show the effect of a variable while keeping
   # all other variables at their mean
 # use step_profile() to create a new recipe for generating a dataset to make 
   # the marginal prediction
+# uncorrelated predictors:
+# bio 07, 09, 05, 19, 02, 18, 14, 08, 15, altitude
+# there must be a way to loop through this?
+
+# investigate the contribution of bio07:
+bio07_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio07, profile = vars(bio07)) %>% 
+  prep(training = ran_occ_thin)
+
+bio07_data <- bake(bio07_prof, new_data = NULL)
+
+bio07_data <- bio07_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio07_data)$mean
+  )
+
+ggplot(bio07_data, aes(x = bio05, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+# investigate the contribution of bio09:
+bio09_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio09, profile = vars(bio09)) %>% 
+  prep(training = ran_occ_thin)
+
+bio09_data <- bake(bio09_prof, new_data = NULL)
+
+bio09_data <- bio09_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio09_data)$mean
+  )
+
+ggplot(bio09_data, aes(x = bio09, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
 # investigate the contribution of bio05:
 bio05_prof <- ran_recipe %>%  # recipe from above
   step_profile(-bio05, profile = vars(bio05)) %>% 
@@ -368,6 +498,110 @@ bio05_data <- bio05_data %>%
 ggplot(bio05_data, aes(x = bio05, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
+# investigate the contribution of bio19:
+bio19_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio19, profile = vars(bio19)) %>% 
+  prep(training = ran_occ_thin)
+
+bio19_data <- bake(bio19_prof, new_data = NULL)
+
+bio19_data <- bio19_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio19_data)$mean
+  )
+
+ggplot(bio19_data, aes(x = bio19, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+# investigate the contribution of bio02:
+bio02_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio02, profile = vars(bio02)) %>% 
+  prep(training = ran_occ_thin)
+
+bio02_data <- bake(bio02_prof, new_data = NULL)
+
+bio02_data <- bio02_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio02_data)$mean
+  )
+
+ggplot(bio02_data, aes(x = bio02, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+# investigate the contribution of bio18:
+bio18_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio05, profile = vars(bio18)) %>% 
+  prep(training = ran_occ_thin)
+
+bio18_data <- bake(bio18_prof, new_data = NULL)
+
+bio18_data <- bio18_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio18_data)$mean
+  )
+
+ggplot(bio18_data, aes(x = bio18, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+# investigate the contribution of bio14:
+bio14_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio14, profile = vars(bio14)) %>% 
+  prep(training = ran_occ_thin)
+
+bio14_data <- bake(bio14_prof, new_data = NULL)
+
+bio14_data <- bio14_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio14_data)$mean
+  )
+
+ggplot(bio14_data, aes(x = bio14, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+# investigate the contribution of bio08:
+bio08_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio08, profile = vars(bio08)) %>% 
+  prep(training = ran_occ_thin)
+
+bio08_data <- bake(bio08_prof, new_data = NULL)
+
+bio08_data <- bio08_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio08_data)$mean
+  )
+
+ggplot(bio08_data, aes(x = bio08, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+# investigate the contribution of bio15:
+bio15_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio15, profile = vars(bio15)) %>% 
+  prep(training = ran_occ_thin)
+
+bio15_data <- bake(bio15_prof, new_data = NULL)
+
+bio15_data <- bio15_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio15_data)$mean
+  )
+
+ggplot(bio15_data, aes(x = bio15, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+# investigate the contribution of altitude:
+altitude_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-altitude, profile = vars(altitude)) %>% 
+  prep(training = ran_occ_thin)
+
+altitude_data <- bake(altitude_prof, new_data = NULL)
+
+altitude_data <- altitude_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, altitude_data)$mean
+  )
+
+ggplot(altitude_data, aes(x = altitude, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
 
 ## Repeated Ensembles ##
 
