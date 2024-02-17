@@ -63,7 +63,6 @@ na_bound_area <- st_area(na_bound_sf) # 9.21e+12 m^2
 na_bound_area <- st_area(na_bound_sf)/1000000
 na_bound_area <- units::set_units(st_area(na_bound_sf), km^2) # 9 198 629 km^2
 
-
 # vectorize the na_bound sf object so it can be rasterized
 # need this empty raster as a base layer for tidysdm pipeline
 na_bound <- vect(na_bound_sf)
