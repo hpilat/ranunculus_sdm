@@ -1,8 +1,12 @@
-# tidysdm tutorial
-
+# Following tidysdm tutorial, we input Ranunculus glaberrimus occurrence records 
+  # and informed predictors into the tidysdm pipeline
+# Please first run scripts in the following order: 
+  # 01_data_download_ranunculus.R
+  # 02_continental_divide.Rmd
+  # 03_data_prep_ranunculus.R
+      
 # dir.create("outputs/")
 
-# attempting multiraster with categorical rasters converted to numeric (line 104)
 
 library(tidysdm)
 library(tidyterra)
@@ -21,21 +25,14 @@ na_bound_rast <- rast("data/processed/na_bound_rast.tif")
 predictors_multi <- rast("data/processed/predictors_multi.tif")
 
 # read in Ranunculus glaberrimus presence dataframe, 
-# dataframe with ID, latitude, and longitude columns
-ran_occ_download # tibble/dataframe
+# dataframe with ID, latitude, and longitude columns, cropped to spatial extent
+ran_occ # tibble/dataframe
 
 # plot the presences on a map to visualize them
 # cast coordinates into an sf object and set its CRS to WGS84
-ran_occ_sf <- st_as_sf(ran_occ_download, coords = c("decimalLongitude", "decimalLatitude"))
+ran_occ_sf <- st_as_sf(ran_occ, coords = c("decimalLongitude", "decimalLatitude"))
 # set CRS to WGS84
 st_crs(ran_occ_sf) <- 4326
-
-# lines 26-30 already done in data prep script
-# read in multiraster with predictors cropped and masked to the extent of interest
-# predictors_multirast <- crop(predictors_multirast, na_bound)
-
-# mask the multiraster to the extent (all values outside na_bound set to NA)
-# predictors_multirast <- mask(predictors_multirast, na_bound)
 
 # plot occurrences directly on raster with predictor variables
 
@@ -269,34 +266,34 @@ ran_ensemble %>% collect_metrics() # error said no collect_metric() exists for t
 # predictions using the ensemble
 # default is taking the mean of the predictions from each model
 # line below uses over 10GB of RAM
-prediction_present <- predict_raster(ran_ensemble, predictors_multi)
+prediction_present_multirast <- predict_raster(ran_ensemble, predictors_multi)
 
 ggplot() +
-  geom_spatraster(data = prediction_present, aes (fill = mean)) +
+  geom_spatraster(data = prediction_present_multirast, aes (fill = mean)) +
   scale_fill_terrain_c() + # c for continuous
   geom_sf(data = ran_occ_th %>% filter(class == "presence"))
 
 # subset the ensemble to only use the best models (AUC > 0.8)
 # take the median of the available model predictions (default is the mean)
-prediction_present_AUC <- predict_raster(ran_ensemble, predictors_multi, 
+prediction_present_best_multirast <- predict_raster(ran_ensemble, predictors_multi, 
                                          metric_thresh = c("roc_auc", 0.8), 
                                          fun = "median"
                                          )
 
-prediction_present_AUC <- predict_raster(ran_ensemble, predictors_multi,
+prediction_present_best_multirast <- predict_raster(ran_ensemble, predictors_multi,
                                          metric_thresh = c("roc_auc", 0.8),
                                          fun = "median"
                                          )
 
 ggplot() +
-  geom_spatraster(data = prediction_present_AUC, aes(fill = median)) +
+  geom_spatraster(data = prediction_present_best_multirast, aes(fill = median)) +
   scale_fill_terrain_c() +
   geom_sf(data = ran_occ_th %>% filter(class == "presence"))
 
 # desirable to have binary predictions (presence/absence) rather than probability of occurrence
   # calibrate threshold used to convert probabilities into classes
 ran_ensemble <- calib_class_thresh(ran_ensemble, 
-                                      class_thresh = "roc_auc"
+                                      class_thresh = "tss_max"
                                       )
 
 prediction_present_binary <- predict_raster(ran_ensemble, 

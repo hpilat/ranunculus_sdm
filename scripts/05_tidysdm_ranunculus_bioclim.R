@@ -263,7 +263,7 @@ ran_ensemble <- simple_ensemble() %>%
 # can also use roc_auc and tss_max as metrics
 ran_ensemble
 autoplot(ran_ensemble)
-collect_metrics(ran_ensemble)
+collect_metrics(ran_ensemble) # need to update tidysdm version for this to work
 
 
 ## Projecting to the Present ##
@@ -465,7 +465,7 @@ bio07_data <- bio07_data %>%
     pred = predict(ran_ensemble, bio07_data)$mean
   )
 
-ggplot(bio07_data, aes(x = bio05, y = pred)) +
+ggplot(bio07_data, aes(x = bio07, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
 # investigate the contribution of bio09:
@@ -654,7 +654,7 @@ for (i_repeat in 1:3) {
     )
   # make an simple ensemble and add it to the list
   ensemble_list[[i_repeat]] <- simple_ensemble() %>%
-    add_member(ran_thin_rep_models, metric = "boyce_cont")
+    add_member(ran_thin_rep_models, metric = "roc_auc")
 }
 
 # now create repeat_ensemble from the list:
@@ -669,3 +669,4 @@ ran_thin_rep_ens <- predict_raster(ran_thin_rep_ens,
 ggplot() +
   geom_spatraster(data = ran_thin_rep_ens, aes(fill = median)) +
   scale_fill_terrain_c()
+# convert to binary and calculate area?
