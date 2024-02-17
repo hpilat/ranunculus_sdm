@@ -62,6 +62,7 @@ ggplot() +
 
 # thin further to remove points closer than 5km
 # default is metres, could input 5000 or use km2m(5)
+# attempting 10km
 set.seed(1234567)
 ran_occ_th <- thin_by_dist(ran_occ, dist_min = km2m(5))
 nrow(ran_occ_th)
@@ -86,12 +87,14 @@ ggplot() +
 # select 10 times as many pseudoabsences as presences 
   # (recommended 10 000 pseudoabsences by lit review)
 # ran_occ_thin will then have presences and pseudoabsences
+# attempting only 5 times as many pseudoabsences as presences
 set.seed(1234567)
 ran_occ_th <- sample_pseudoabs(ran_occ_th, 
                                n = 10 * nrow(ran_occ_th), 
                                raster = na_bound_rast, 
                                method = c("dist_min", km2m(50))
                                )
+nrow(ran_occ_th) # 15455
 
 # plot presences and absences
 ggplot() +
@@ -103,31 +106,38 @@ ggplot() +
 ### Variable Selection ###
 
 
-
 # select variables for which presences are markedly different from the 
   # underlying background
 # First, extract variables from predictors_multirast 
   # for all presences and pseudoabsences
+summary(predictors_multi) # 80 000 + NAs per column
+nrow(ran_occ_th) # 15455
+nrow(predictors_multi) # 8024
 ran_occ_th <- ran_occ_th %>% 
-  bind_cols(terra::extract(predictors_multi, ran_occ_th, ID = FALSE))
-# above code assigns new names for some reason and appears to have many more layers in some runs
-names(ran_occ_th)
-summary(ran_occ_th)
+  bind_cols(terra::extract(predictors_multi, ran_occ_th, ID = FALSE, na.rm = TRUE))
+nrow(ran_occ_th) # 15455
+# after this step, no NA values in ran_occ_thin from tutorial
+  # but I have NA values from predictors_multi
+summary(ran_occ_th) # still lots of NAs, but not as many as predictors_multirast
+
+ran_occ_th_no_NA <- na.omit(ran_occ_th)
+nrow(ran_occ_th_no_NA) # 12238, 3217 rows removed
 
 # ran_occ_th contains NA values (counterpart in tutorial does not)
   # attempt to remove rows with NA values:
-ran_occ_th <- na.omit(ran_occ_th)
-summary(ran_occ_th)
+# ran_occ_th <- na.omit(ran_occ_th)
+# summary(ran_occ_th)
+# nrow(ran_occ_th)
 
 # use violin plots to compare the distribution of the variables for presences
   # and pseudoabsences
-ran_occ_th %>% plot_pres_vs_bg(class)
+# ran_occ_th %>% plot_pres_vs_bg(class)
 
 
 # want to select variables for which presences use values different from 
   # the background/pseudoabsences
 # rank the variables based on the overlap of the respective density plots
-ran_occ_th %>% dist_pres_vs_bg(class)
+# ran_occ_th %>% dist_pres_vs_bg(class)
 
 # focus on variables with at least 30% of non-overlapping distribution between 
   # presences and pseudoabsences
@@ -150,9 +160,10 @@ suggested_vars <- names(predictors_multi) # this actually worked with pairs comm
 pairs(predictors_multi[[suggested_vars]])
 
 # need a smaller sample to calculate collinearity between variables
-nrow(predictors_multi) # 8024 rows 
+nrow(predictors_multi) # 8024 rows
+ncol(predictors_multi)
 # try sample size of 5000 cells
-predictors_sample <- terra::spatSample(predictors_multi, size = 5000, 
+predictors_sample <- terra::spatSample(predictors_multi, size = 100000, 
                                        method = "random", replace = FALSE, 
                                        na.rm = FALSE, as.raster = TRUE,
                                        values = TRUE, cells = FALSE, xy = TRUE)
@@ -171,6 +182,8 @@ predictors_uncorr
 # here is where the "class" column gets dropped, which messes up recipe below
   # need to retain class column (not in original tutorial code)
 ran_occ_th <- ran_occ_th %>% select(all_of(c(predictors_uncorr, "class")))
+
+## changed code below from predictors_multi[[predictors_uncorr]]
 predictors_multi <- predictors_multi[[predictors_uncorr]]
 predictors_multi
 
@@ -221,13 +234,14 @@ set.seed(1234567)
 ran_occ_models <- 
   ran_occ_models %>% 
   workflow_map("tune_grid", 
-               resamples = ran_occ_cv, grid = 10, # attempting 10 combos of hyperparameters
+               resamples = ran_occ_cv, grid = 5, # attempting 10 combos of hyperparameters
                metrics = sdm_metric_set(), verbose = TRUE
                ) 
 
 # want workflow_set to correctly detect no tuning parameters for GLM
 # inspect performance of models:
 autoplot(ran_occ_models)
+collect_metrics(ran_occ_models)
 
 
 
@@ -264,7 +278,7 @@ ggplot() +
 
 # subset the ensemble to only use the best models (AUC > 0.8)
 # take the median of the available model predictions (default is the mean)
-prediction_present_AUC <- predict_raster(ran_ensemble, ran_occ_th, 
+prediction_present_AUC <- predict_raster(ran_ensemble, predictors_multi, 
                                          metric_thresh = c("roc_auc", 0.8), 
                                          fun = "median"
                                          )
@@ -276,7 +290,7 @@ ggplot() +
 
 # desirable to have binary predictions (presence/absence) rather than probability of occurrence
   # calibrate threshold used to convert probabilities into classes
-ran_ensemble <- calib_class_threshold(ran_ensemble, 
+ran_ensemble <- calib_class_thresh(ran_ensemble, 
                                       class_thresh = "roc_auc"
                                       )
 
