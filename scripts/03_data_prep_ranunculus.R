@@ -1,9 +1,25 @@
+# This script prepares spatial extent, occurrence records, and predictor data
+  # for input into the tidysdm pipeline
+# Please first run these scripts in the following order:
+  # 01_data_download_ranunculus.R
+  # 02_continental_divide.Rmd
+
 ## Spatial Extent ##
 
-# for faster computation, can just run lines 38, 39, 50, and 332. 
+# for faster computation after initial run, can just run lines 38, 39, 50, and 332. 
 
 # Skeetchestn territory:
 # SNRC provided shapefile of Skeetchestn traditional territory
+# Read in Skeetchestn territory shapefile as sf object first, so we can calculate
+  # the area in km^2
+skeetch_sf <- read_sf("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
+plot(skeetch_sf)
+crs(skeetch_sf) # BC Albers, NAD83
+skeetch_area <- st_area(skeetch_sf) # 7e+09 m^2
+# convert from m^2 to km^2
+skeetch_area <- st_area(skeetch_sf)/1000000
+skeetch_area <- units::set_units(st_area(skeetch_sf), km^2) #6996 km^2
+
 # Vectorize this shapefile so it can be rasterized
 # skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
 # reproject to WGS84
@@ -34,8 +50,21 @@
 
 # North American extent (west coast to continental divide)
 # new geographic extent created in continental_divide.Rmd
+# read in shapefile so we can calculate the area
+na_bound_sf <- read_sf("data/raw/continental_divide_buffer_boundary.shp")
+plot(na_bound_sf)
+crs(na_bound_sf) # WGS84
+# reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
+na_bound_area <- st_transform(na_bound_sf, "EPSG:3005")
+na_bound_area <- st_set_crs(na_bound_sf, "EPSG:3005")
+na_bound_area <- st_area(na_bound_sf) # 9.21e+12 m^2
+# convert from m^2 to km^2
+na_bound_area <- st_area(na_bound_sf)/1000000
+na_bound_area <- units::set_units(st_area(na_bound_sf), km^2) # 9 198 629 km^2
 
-na_bound <- read_sf("data/raw/continental_divide_buffer_boundary.shp")
+
+# vectorize the na_bound sf object so it can be rasterized
+# need this empty raster as a base layer for tidysdm pipeline
 na_bound <- vect(na_bound)
 
 # create an empty raster based on study extent in order to rasterize na_bound
@@ -70,10 +99,6 @@ ran_occ_vect <- vect(ran_occ, geom = c("decimalLongitude", "decimalLatitude"),
 ran_occ <- crop(ran_occ_vect, na_bound)
 ran_occ
 
-# create an sf object from the cropped SpatVector, to be used as input for tidysdm
-ran_occ_sf <- st_as_sf(ran_occ, 
-                       coords = c("decimalLongitude", "decimalLatitude"))
-ran_occ_sf
 
 ## Predictor Data ##
 
