@@ -9,8 +9,16 @@ library(pastclim)
 library(ggplot2)
 library(overlapping)
 
+# North American extent (west coast to continental divide)
+# new geographic extent created in continental_divide.Rmd
+# read in na_bound_rast
+na_bound_rast <- rast("data/processed/na_bound_rast.tif")
+
+na_bound <- read_sf("data/raw/continental_divide_buffer_boundary.shp")
+na_bound <- vect(na_bound)
+
 # read in Ranunculus glaberrimus presence dataframe, 
-  # dataframe with ID, latitude, and longitude columns
+# dataframe with ID, latitude, and longitude columns
 ran_occ_download # tibble/dataframe
 
 # plot the presences on a map to visualize them
@@ -19,11 +27,16 @@ ran_occ_sf <- st_as_sf(ran_occ_download, coords = c("decimalLongitude", "decimal
 # set CRS to WGS84
 st_crs(ran_occ_sf) <- 4326
 
+# check which datasets are available through pastclim:
+pastclim::get_available_datasets()
+# can use "WorldClim_2.1_10m" or "WorldClim_2.1_5m"
+
 # plot species occurrences directly on the raster used to extract climatic variables
 # get land mask for available datasets, use that as background for occurrences
+# download date: February 15th, 2024
 worldclim <- pastclim::download_dataset(dataset = "WorldClim_2.1_10m", 
                                         bio_variables = NULL, 
-                                        annual = TRUE, monthly = FALSE) 
+                                        annual = FALSE, monthly = TRUE) 
                                         # ^ alter this for monthly variables
 # TRUE under values in environment = successful download
 
@@ -79,7 +92,7 @@ ggplot() +
 
 set.seed(1234567)
 ran_occ_thin <- sample_pseudoabs(ran_occ_thin, 
-                                 n = 5 * nrow(ran_occ_thin), 
+                                 n = 10 * nrow(ran_occ_thin), 
                                  raster = land_mask, 
                                  coords = NULL, 
                                  method = c("dist_min", km2m(50))
@@ -112,10 +125,16 @@ climate_present <- pastclim::region_slice(
   crop = na_bound # SpatVector with area boundary
 )
 
+nrow(ran_occ_thin) # 11330
+summary(climate_present) # lots of NA values
+nrow(climate_present) # 401
+
 # select variables noticeably different from the underlying background
 # first extract climate for all presences and pseudoabsences
 ran_occ_thin <- ran_occ_thin %>% 
   bind_cols(terra::extract(climate_present, ran_occ_thin, ID = FALSE))
+summary(ran_occ_thin) # no NA values
+nrow(ran_occ_thin) # 11330, no reduction in # of rows
 
 # use violin plots to compare the distribution of climate variables for
   # presences and pseudoabsences
@@ -128,35 +147,43 @@ ran_occ_thin %>% dist_pres_vs_bg(class)
 
 # select variables with at least 30% of non-overlapping distribution between
   # presences and pseudoabsences
-vars_to_keep <- ran_occ_thin %>% dist_pres_vs_bg(class)
-vars_to_keep <- names(vars_to_keep[vars_to_keep > 0.30])
-ran_occ_thin <- ran_occ_thin %>% select(all_of(c(vars_to_keep, "class")))
-vars_to_keep
+# vars_to_keep <- ran_occ_thin %>% dist_pres_vs_bg(class)
+# vars_to_keep <- names(vars_to_keep[vars_to_keep > 0.30])
+# ran_occ_thin <- ran_occ_thin %>% select(all_of(c(vars_to_keep, "class")))
+# vars_to_keep
 
 # selected certain variables based on literature:
-suggested_vars <- c("bio01", "bio05", "bio06", "bio07", "bio13", "bio14")
+# suggested_vars <- c("bio01", "bio05", "bio06", "bio07", "bio13", "bio14")
 
 # inspect the correlation among variables:
-pairs(climate_present[[suggested_vars]])
+# pairs(climate_present[[suggested_vars]])
 
 # subset to variables below a correlation threshold of 0.7
+# climate_present <- climate_present[[suggested_vars]]
+# vars_uncor <- filter_high_cor(climate_present, cutoff = 0.7)
+# vars_uncor
+
+# only left with 3 variables here, attempt to threshold all variables
+
+suggested_vars <- names(climate_present) # this actually worked with pairs command
+
+# inspect the variables for collinearity
+# pairs(climate_present[[suggested_vars]])
+
+# subset to variables below 0.8 Pearson's correlation coefficient
+# start with 0.7 first (as done in tutorial)
+# predictors_multi = SpatRaster with predictor data (all numeric, no NAs)
 climate_present <- climate_present[[suggested_vars]]
-vars_uncor <- filter_high_cor(climate_present, cutoff = 0.7)
-vars_uncor
-# only left with 3 variables here
 
-# try thresholding all 19 variables
-# vars_to_keep <- c("bio01", "bio02", "bio03", "bio04", "bio05", "bio06", "bio07", 
-                 #  "bio08", "bio09", "bio10", "bio11", "bio12", "bio13", "bio14", 
-                 #  "bio15", "bio16", "bio17", "bio18", "bio19", "altitude")
-
-# climate_present <- climate_present[[vars_to_keep]]
-# vars_uncor_all <- filter_high_cor(climate_present, cutoff = 0.7)
-# vars_uncor_all
+# below code was taking forever to run, but no delays in the bioclim code
+vars_uncorr <- filter_high_cor(climate_present, cutoff = 0.7, 
+                                     verbose = FALSE, names = TRUE, to_keep = NULL)
+vars_uncorr
+# now left with 7 predictor variables
 
 # select uncorrelated variables
-ran_occ_thin <- ran_occ_thin %>% select(all_of(c(vars_uncor, "class")))
-climate_present <- climate_present[[vars_uncor]]
+ran_occ_thin <- ran_occ_thin %>% select(all_of(c(vars_uncorr, "class")))
+climate_present <- climate_present[[vars_uncorr]]
 
 
 ## Model Fitting ##
@@ -215,12 +242,13 @@ ran_models <-
 
 # look at the performance of the models:
 autoplot(ran_models)
+model_metrics <- collect_metrics(ran_models)
 # metrics are Boyce continuous index, TSS max, and ROC AUC
 
 
 ## Ensemble ##
 
-# use Boyce-continuous index as metric to choose best
+# use AUC as metric to choose best
   # random forest and boosted tree models
 # when adding members to an ensemble, they are auto-fitted to the full
   # training dataset and therefore ready to make predictions
@@ -229,6 +257,7 @@ ran_ensemble <- simple_ensemble() %>%
 # can also use roc_auc and tss_max as metrics
 ran_ensemble
 autoplot(ran_ensemble)
+collect_metrics(ran_ensemble)
 
 
 ## Projecting to the Present ##
@@ -241,9 +270,8 @@ ggplot() +
   # plot the presences used in the model
   geom_sf(data = ran_occ_thin %>% filter(class == "presence"))
 
-# subset the model to only use the best models, based on Boyce continuous index
-# set threshold of 0.8 for Boyce continuous index
-  # 0.8 threshold excluded all models, used 0.7 instead
+# subset the model to only use the best models, based on AUC
+# set threshold of 0.8 for AUC
 # take the median of the available model predictions (mean is the default)
 prediction_present_boyce <- predict_raster(ran_ensemble, climate_present, 
                                            metric_thresh = c("roc_auc", 0.8), 
@@ -256,14 +284,15 @@ ggplot() +
 # if plot doesn't change much, models are consistent
 # model gives us probability of occurrence
 # can convert to binary predictions (present vs absence)
+# error in code below:
 ran_ensemble_binary <- calib_class_thresh(ran_ensemble, 
-                                          class_thresh = "tss_max")
+                                          class_thresh = "roc_auc")
 
-# now predict for the whole continent?
+# error in code below:
 prediction_present_binary <- predict_raster(ran_ensemble_binary, 
                                             climate_present, 
                                             type = "class", 
-                                            class_thresh = c("tss_max"))
+                                            class_thresh = c("roc_auc"))
 
 ggplot() +
   geom_spatraster(data = prediction_present_binary, aes(fill = binary_mean)) +
@@ -275,6 +304,8 @@ ggplot() +
 # full list of future projections from WorldClim:
 help("WorldClim_2.1")
 # ssp = Shared Socioeconomic Pathways, 126, 245, 370, 585 available
+
+# SSP 245, 2081-2100
 download_dataset("WorldClim_2.1_HadGEM3-GC31-LL_ssp245_10m")
 
 # see which times are available:
@@ -288,15 +319,29 @@ get_vars_for_dataset("WorldClim_2.1_HadGEM3-GC31-LL_ssp245_10m")
   # but altitude not included in set of uncorrelated variables from earlier, 
     # so don't include here
 
+
+# error in code chunk below: altitude not available for future predictions,
+  # but included in vars_uncorr - need to remove altitude then later paste the 
+  # values from climate_present into climate_future
+# select uncorrelated variables
+vars_uncorr_fut <- vars_uncorr[ !vars_uncorr == 'altitude']
+vars_uncorr_fut
+
 climate_future <- pastclim::region_slice(
   time_ce = 2090, 
-  bio_variables = vars_uncor, # uncorrelated variables created previously
+  bio_variables = vars_uncorr_fut, # uncorrelated variables created previously
+  # need to find out how to deal with
   data = "WorldClim_2.1_HadGEM3-GC31-LL_ssp245_10m", 
   crop = na_bound #boundary polygon for study area
 )
 
+# need to add altitude layer from climate_present
+climate_future <- c(climate_future, climate_present$altitude)
+# note: terra has an add function, but wasn't working for me
+
 # predict using the ensemble:
 prediction_future <- predict_raster(ran_ensemble, climate_future)
+
 ggplot() +
   geom_spatraster(data = prediction_future, aes(fill = mean)) +
   scale_fill_terrain_c()
