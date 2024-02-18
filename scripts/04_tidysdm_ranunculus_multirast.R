@@ -332,4 +332,246 @@ prediction_present_area <- units::set_units(st_area(prediction_present_sf), km^2
 
 # divide predicted present area by total study area to get proportion
 proportion_suitable_present <- prediction_present_area/na_bound_area
-# 
+
+
+#### Visualizing the Contribution of Individual Variables ####
+
+
+
+# for a written explanation of variable importance:
+# using DALEX library, integrated with tidysdm
+# create an explainer object
+library(DALEX)
+explainer_ran_ensemble <- explain_tidysdm(ran_ensemble)
+vip_ensemble <- model_parts(explainer = explainer_ran_ensemble, 
+                            type = "variable_importance")
+vip_ensemble
+
+
+# marginal response curves can show the effect of a variable while keeping
+# all other variables at their mean
+# use step_profile() to create a new recipe for generating a dataset to make 
+# the marginal prediction
+# uncorrelated predictors:
+# need to tailor to this script and update below code
+# there must be a way to loop through this?
+
+# investigate the contribution of bio07:
+bio07_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio07, profile = vars(bio07)) %>% 
+  prep(training = ran_occ_thin)
+
+bio07_data <- bake(bio07_prof, new_data = NULL)
+
+bio07_data <- bio07_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio07_data)$mean
+  )
+
+ggplot(bio07_data, aes(x = bio07, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+# investigate the contribution of bio09:
+bio09_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio09, profile = vars(bio09)) %>% 
+  prep(training = ran_occ_thin)
+
+bio09_data <- bake(bio09_prof, new_data = NULL)
+
+bio09_data <- bio09_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio09_data)$mean
+  )
+
+ggplot(bio09_data, aes(x = bio09, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+# investigate the contribution of bio05:
+bio05_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio05, profile = vars(bio05)) %>% 
+  prep(training = ran_occ_thin)
+
+bio05_data <- bake(bio05_prof, new_data = NULL)
+
+bio05_data <- bio05_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio05_data)$mean
+  )
+
+ggplot(bio05_data, aes(x = bio05, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+# investigate the contribution of bio19:
+bio19_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio19, profile = vars(bio19)) %>% 
+  prep(training = ran_occ_thin)
+
+bio19_data <- bake(bio19_prof, new_data = NULL)
+
+bio19_data <- bio19_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio19_data)$mean
+  )
+
+ggplot(bio19_data, aes(x = bio19, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+# investigate the contribution of bio02:
+bio02_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio02, profile = vars(bio02)) %>% 
+  prep(training = ran_occ_thin)
+
+bio02_data <- bake(bio02_prof, new_data = NULL)
+
+bio02_data <- bio02_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio02_data)$mean
+  )
+
+ggplot(bio02_data, aes(x = bio02, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+# investigate the contribution of bio18:
+bio18_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio05, profile = vars(bio18)) %>% 
+  prep(training = ran_occ_thin)
+
+bio18_data <- bake(bio18_prof, new_data = NULL)
+
+bio18_data <- bio18_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio18_data)$mean
+  )
+
+ggplot(bio18_data, aes(x = bio18, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+# investigate the contribution of bio14:
+bio14_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio14, profile = vars(bio14)) %>% 
+  prep(training = ran_occ_thin)
+
+bio14_data <- bake(bio14_prof, new_data = NULL)
+
+bio14_data <- bio14_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio14_data)$mean
+  )
+
+ggplot(bio14_data, aes(x = bio14, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+# investigate the contribution of bio08:
+bio08_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio08, profile = vars(bio08)) %>% 
+  prep(training = ran_occ_thin)
+
+bio08_data <- bake(bio08_prof, new_data = NULL)
+
+bio08_data <- bio08_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio08_data)$mean
+  )
+
+ggplot(bio08_data, aes(x = bio08, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+# investigate the contribution of bio15:
+bio15_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio15, profile = vars(bio15)) %>% 
+  prep(training = ran_occ_thin)
+
+bio15_data <- bake(bio15_prof, new_data = NULL)
+
+bio15_data <- bio15_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio15_data)$mean
+  )
+
+ggplot(bio15_data, aes(x = bio15, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+# investigate the contribution of altitude:
+altitude_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-altitude, profile = vars(altitude)) %>% 
+  prep(training = ran_occ_thin)
+
+altitude_data <- bake(altitude_prof, new_data = NULL)
+
+altitude_data <- altitude_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, altitude_data)$mean
+  )
+
+ggplot(altitude_data, aes(x = altitude, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+
+
+## Repeated Ensembles ##
+
+# explore the effect of thinning and sampling pseudoabsences on model performance
+# create a list of simple_ensembles by looping through the SDM pipeline
+# create an empty object to store the simple ensembles we will create:
+ensemble_list <- list()
+set.seed(123) # make sure seed is set outside of the loop
+
+for (i_repeat in 1:3) {
+  # thin the data
+  ran_thin_rep <- thin_by_cell(ran_occ_sf, raster = climate_present)
+  ran_thin_rep <- thin_by_dist(ran_thin_rep, dist_min = 5000)
+  # sample pseudo-absences
+  ran_thin_rep <- sample_pseudoabs(ran_thin_rep,
+                                   n = 3 * nrow(ran_thin_rep),
+                                   raster = climate_present,
+                                   method = c("dist_min", 50000)
+  )
+  # get climate
+  ran_thin_rep <- ran_thin_rep %>%
+    bind_cols(terra::extract(climate_present, ran_thin_rep, ID = FALSE))
+  # create folds
+  ran_thin_rep_cv <- spatial_block_cv(ran_thin_rep, v = 5) # 5 folds
+  # create a recipe
+  ran_thin_rep_rec <- recipe(ran_thin_rep, formula = class ~ .)
+  # create a workflow_set
+  ran_thin_rep_models <-
+    # create the workflow_set
+    workflow_set(
+      preproc = list(default = ran_thin_rep_rec),
+      models = list(
+        # the standard glm specs
+        glm = sdm_spec_glm(),
+        # maxent specs with tuning
+        maxent = sdm_spec_maxent()
+      ),
+      # make all combinations of preproc and models,
+      cross = TRUE
+    ) %>%
+    # tweak controls to store information needed later to create the ensemble
+    option_add(control = control_ensemble_grid())
+  
+  # train the model
+  ran_thin_rep_models <-
+    ran_thin_rep_models %>%
+    workflow_map("tune_grid",
+                 resamples = ran_thin_rep_cv, grid = 10,
+                 metrics = sdm_metric_set(), verbose = TRUE
+    )
+  # make an simple ensemble and add it to the list
+  ensemble_list[[i_repeat]] <- simple_ensemble() %>%
+    add_member(ran_thin_rep_models, metric = "roc_auc")
+}
+
+# now create repeat_ensemble from the list:
+ran_thin_rep_ens <- repeat_ensemble() %>% add_repeat(ensemble_list)
+ran_thin_rep_ens
+
+# predict by taking the mean and median of all models
+ran_thin_rep_ens <- predict_raster(ran_thin_rep_ens, 
+                                   climate_present, 
+                                   fun = c("mean", "median"))
+
+ggplot() +
+  geom_spatraster(data = ran_thin_rep_ens, aes(fill = median)) +
+  scale_fill_terrain_c()
+# convert to binary and calculate area?
