@@ -305,3 +305,31 @@ prediction_present_binary <- predict_raster(ran_ensemble,
 ggplot() +
   geom_spatraster(data = prediction_present_binary, aes(fill = binary_mean)) +
   geom_sf(data= ran_occ_th %>% filter(class == "presence"))
+
+
+# turn presence into polygon so we can calculate suitable area
+# first need to filter out presence cells from raster
+prediction_present_pres <- prediction_present_binary %>% 
+  filter(binary_mean == "presence")
+
+# vectorize raster to get a polygon around presences
+# need to turn raster into data.frame first
+prediction_present_pres <- as.polygons(prediction_present_pres)
+
+# now turn prediction_present_pres polygons into sf object
+prediction_present_sf <- st_as_sf(prediction_present_pres)
+
+crs(prediction_present_sf) # WGS84
+
+# reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
+prediction_present_area <- st_transform(prediction_present_sf, "EPSG:3005")
+prediction_present_area <- st_set_crs(prediction_present_sf, "EPSG:3005")
+prediction_present_area <- st_area(prediction_present_sf) # ____ m^2
+# convert from m^2 to km^2
+prediction_present_area <- st_area(prediction_present_sf)/1000000
+prediction_present_area <- units::set_units(st_area(prediction_present_sf), km^2) 
+# ____ km^2 of suitable habitat
+
+# divide predicted present area by total study area to get proportion
+proportion_suitable_present <- prediction_present_area/na_bound_area
+# 
