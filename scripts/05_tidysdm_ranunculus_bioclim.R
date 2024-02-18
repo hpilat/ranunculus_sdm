@@ -439,6 +439,9 @@ prediction_future_area_num <- as.numeric(prediction_future_area)
 change_area_present_to_2100 <- prediction_future_area_num - prediction_present_area_num
   # -328 881.059 km^2 change in suitable habitat
 
+# proportion changed:
+proportion_change <- proportion_suitable_future/proportion_suitable_present
+
 
 
 #### Visualizing the Contribution of Individual Variables ####
