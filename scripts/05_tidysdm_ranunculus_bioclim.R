@@ -100,7 +100,7 @@ ran_occ_thin <- sample_pseudoabs(ran_occ_thin,
                                  n = 10 * nrow(ran_occ_thin), 
                                  raster = land_mask, 
                                  coords = NULL, 
-                                 method = c("dist_min", km2m(50))
+                                 method = c("dist_disc", km2m(5), km2m(15))
                                  )
 
 # now plot the presences and absences
@@ -109,7 +109,9 @@ ggplot() +
   geom_sf(data = ran_occ_thin, aes(col = class))
 
 
+
 ### Variable Selection ###
+
 
 
 # see which variables are available from WorldClim dataset
@@ -192,7 +194,11 @@ ran_occ_thin <- ran_occ_thin %>% select(all_of(c(vars_uncorr, "class")))
 climate_present <- climate_present[[vars_uncorr]]
 
 
+
 ## Model Fitting ##
+
+
+
 
 # fit the model by cross-validation
 # need to set up a recipe to define how to handle our dataset

@@ -15,6 +15,8 @@ library(sf)
 library(pastclim)
 library(ggplot2)
 library(overlapping)
+library(ranger)
+library(xgboost)
 
 # North American extent (west coast to continental divide)
 # new geographic extent created in continental_divide.Rmd
@@ -81,7 +83,7 @@ ggplot() +
 # thin occurrences further to remove points closer than 5km
 # distance given in metres, use km2m to reduce number of 0s written for 20km
 set.seed(1234567)
-ran_occ_thin <- thin_by_dist(ran_occ_sf, dist_min = km2m(5))
+ran_occ_thin <- thin_by_dist(ran_occ_sf, dist_min = km2m(10))
 nrow(ran_occ_thin)
 
 # plot the thinned occurrences again
@@ -103,8 +105,12 @@ ran_occ_thin <- sample_pseudoabs(ran_occ_thin,
                                  n = 10 * nrow(ran_occ_thin), 
                                  raster = land_mask, 
                                  coords = NULL, 
-                                 method = c("dist_min", km2m(50)) # change to random?
-)
+                                 method = c("dist_disc", km2m(5), km2m(15))
+                                 )
+# 'dist_disc': pseudo-absences/background randomly sampled from the unioned 
+  # discs around presences with the two values of 'dist_disc' defining the 
+  # minimum and maximum distance from presences.
+  # 5 and 15km disc around presences was arbitrarily chosen
 
 # now plot the presences and absences
 ggplot() +

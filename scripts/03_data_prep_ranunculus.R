@@ -4,6 +4,7 @@
   # 01_data_download_ranunculus.R
   # 02_continental_divide.Rmd
 
+
 ## Spatial Extent ##
 
 # for faster computation after initial run, can just run lines 38, 39, 50, and 332. 
@@ -52,12 +53,13 @@ skeetch_area <- units::set_units(st_area(skeetch_sf), km^2) #6996 km^2
 # new geographic extent created in continental_divide.Rmd
 # read in shapefile so we can calculate the area
 na_bound_sf <- read_sf("data/raw/continental_divide_buffer_boundary.shp")
-
 plot(na_bound_sf)
 crs(na_bound_sf) # WGS84
+
 # reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
 na_bound_area <- st_transform(na_bound_sf, "EPSG:3005")
 na_bound_area <- st_set_crs(na_bound_sf, "EPSG:3005")
+# calculate study area, in m^2 (default)
 na_bound_area <- st_area(na_bound_sf) # 9.21e+12 m^2
 # convert from m^2 to km^2
 na_bound_area <- st_area(na_bound_sf)/1000000
@@ -78,26 +80,33 @@ na_bound_rast <- writeRaster(na_bound_rast, filename = "data/processed/na_bound_
 # read in na_bound_rast
 na_bound_rast <- rast("data/processed/na_bound_rast.tif")
 
+
+
 ## Occurrence Data ##
 
 # clean the occurrence records using CoordinateCleaner package?
 # record-level tests
 
 # cl_coord_ran <- clean_coordinates(x = ran_occ_download, lon = "decimalLongitude", 
-                                 #  lat = "decimalLatitude",
-                                 #  species = "scientificName")
+#  lat = "decimalLatitude",
+#  species = "scientificName")
 
-# select only the relevant columns (ID column, longitude, latitude)?
+# select only the relevant columns: ID column, longitude, latitude
 ran_occ <- dplyr::select(ran_occ_download, gbifID, 
                          decimalLongitude, decimalLatitude) # dataframe
 
-# create a SpatVector object for the occurrence data?
+# create a SpatVector object for the occurrence data
 ran_occ_vect <- vect(ran_occ, geom = c("decimalLongitude", "decimalLatitude"), 
                      crs = "EPSG:4326", keepgeom = FALSE)
 
 # crop the SpatVector to the extent of the study area
 ran_occ <- crop(ran_occ_vect, na_bound)
 ran_occ
+
+# cast coordinates into an sf object and set its CRS to WGS84
+ran_occ_sf <- st_as_sf(ran_occ, coords = c("decimalLongitude", "decimalLatitude"))
+# set CRS to WGS84
+st_crs(ran_occ_sf) <- 4326
 
 
 ## Predictor Data ##

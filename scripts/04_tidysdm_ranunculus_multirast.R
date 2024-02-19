@@ -21,7 +21,7 @@ library(overlapping)
 na_bound_rast <- rast("data/processed/na_bound_rast.tif")
 
 # read in multilayer raster with predictor data, created in
-  # 03_data_prep_ranunculus
+# 03_data_prep_ranunculus
 predictors_multi <- rast("data/processed/predictors_multi.tif")
 
 # read in Ranunculus glaberrimus presence dataframe, 
@@ -33,6 +33,25 @@ ran_occ # tibble/dataframe
 ran_occ_sf <- st_as_sf(ran_occ, coords = c("decimalLongitude", "decimalLatitude"))
 # set CRS to WGS84
 st_crs(ran_occ_sf) <- 4326
+
+
+xlims <- c(ext(ran_occ_sf)$xmin - 2, ext(ran_occ_sf)$xmax + 2)
+ylims <- c(ext(ran_occ_sf)$ymin - 2, ext(ran_occ_sf)$ymax + 15)
+  # additional space north to account for potential northward shifts
+
+# xlims <- c(-130, -102.5)
+# ylims <- c(30, 70)
+
+# now crop and mask all layers:
+extent.test <- terra::ext(xlims, ylims)
+predictors_multi <- crop(predictors_multi, extent.test)
+ran_occ_sf <- st_crop(ran_occ_sf, extent.test)
+na_bound <- crop(na_bound, extent.test)
+na_bound_rast <- crop(na_bound_rast, extent.test)
+
+# mask the multiraster to the extent (all values outside na_bound set to NA)
+predictors_multi <- mask(predictors_multi, na_bound)
+plot(predictors_multi$anth_biome)
 
 # plot occurrences directly on raster with predictor variables
 
@@ -59,19 +78,17 @@ ggplot() +
 
 # thin further to remove points closer than 5km
 # default is metres, could input 5000 or use km2m(5)
-# attempting 10km
+# attempted 5km, filter_high_cor below wouldn't run, so try 10
+# 10 still didn't work, try 15?
 set.seed(1234567)
-ran_occ_th <- thin_by_dist(ran_occ, dist_min = km2m(5))
-nrow(ran_occ_th)
-
-# test out how many occurrences when thinning to 20km
-# set.seed(1234567)
-# ran_occ_thin_20 <- thin_by_dist(ran_occ, dist_min = km2m(20))
-# nrow(ran_occ_thin_20) # only 658 occurrences left
+ran_occ_th <- thin_by_dist(ran_occ, dist_min = km2m(10))
+nrow(ran_occ_th) # 1400 at 5km thinning, 1046 at 10km thinning
 
 ggplot() +
   geom_spatraster(data = na_bound_rast, aes(fill = layer)) +
-  geom_sf(data = ran_occ_th)
+  geom_sf(data = ran_occ_th) +
+  scale_x_continuous(limits = xlims) +
+  scale_y_continuous(limits = ylims)
 
 
 
@@ -80,18 +97,18 @@ ggplot() +
 
 
 # sample pseudoabsences/background points
-# constrain pseudoabsences to be at least 50km away from any presences
+# constrain pseudoabsences to be between 5 and 15km from any presences
+  # choice of 5 and 15km is arbitrary
 # select 10 times as many pseudoabsences as presences 
   # (recommended 10 000 pseudoabsences by lit review)
 # ran_occ_thin will then have presences and pseudoabsences
-# attempting only 5 times as many pseudoabsences as presences
 set.seed(1234567)
 ran_occ_th <- sample_pseudoabs(ran_occ_th, 
                                n = 10 * nrow(ran_occ_th), 
                                raster = na_bound_rast, 
-                               method = c("dist_min", km2m(50))
+                               method = c("dist_disc", km2m(5), km2m(15))
                                )
-nrow(ran_occ_th) # 15455
+nrow(ran_occ_th) # 11506
 
 # plot presences and absences
 ggplot() +
@@ -102,77 +119,42 @@ ggplot() +
 
 ### Variable Selection ###
 
-
-# select variables for which presences are markedly different from the 
-  # underlying background
-# First, extract variables from predictors_multirast 
-  # for all presences and pseudoabsences
-summary(predictors_multi) # 80 000 + NAs per column
-nrow(ran_occ_th) # 15455
-nrow(predictors_multi) # 8024
+# Extract variables from predictors_multirast for all presences and pseudoabsences
+summary(predictors_multi # 50 000 + NAs per column
+nrow(ran_occ_th) # 11506
+nrow(predictors_multi) # 4638
 ran_occ_th <- ran_occ_th %>% 
   bind_cols(terra::extract(predictors_multi, ran_occ_th, ID = FALSE, na.rm = TRUE))
-nrow(ran_occ_th) # 15455
+nrow(ran_occ_th) # 11506
 # after this step, no NA values in ran_occ_thin from tutorial
   # but I have NA values from predictors_multi
-summary(ran_occ_th) # still lots of NAs, but not as many as predictors_multirast
+summary(ran_occ_th) # still some NAs, bioclim script magically has none at this point
 
 ran_occ_th <- na.omit(ran_occ_th)
-nrow(ran_occ_th) # 12238, 3217 rows removed
+nrow(ran_occ_th) # 11403, 103 rows removed
 
-# ran_occ_th contains NA values (counterpart in tutorial does not)
-  # attempt to remove rows with NA values:
-# ran_occ_th <- na.omit(ran_occ_th)
-# summary(ran_occ_th)
-# nrow(ran_occ_th)
-
-# use violin plots to compare the distribution of the variables for presences
-  # and pseudoabsences
-# ran_occ_th %>% plot_pres_vs_bg(class)
-
-
-# want to select variables for which presences use values different from 
-  # the background/pseudoabsences
-# rank the variables based on the overlap of the respective density plots
-# ran_occ_th %>% dist_pres_vs_bg(class)
-
-# focus on variables with at least 30% of non-overlapping distribution between 
-  # presences and pseudoabsences
-  # below code messes with correlation filtering step
-# vars_to_keep <- ran_occ_th %>% dist_pres_vs_bg(class)
-# vars_to_keep <- names(vars_to_keep[vars_to_keep > 0.3])
-# ran_occ_th <- ran_occ_th %>% select(all_of(c(vars_to_keep, "class")))
-# vars_to_keep
-
-# tutorial has a list of variables suggested by the literature to be important
-  # in determining the distribution of the species
-# below code isn't working in the commands following
-# suggested_vars <- c("anth_biome", "Climate", "elevation_na", "lndcvr_na", 
-                   #  "soil_phh2o_0_5", "soilphh2o_5_15", 
-                   #  "soil_temp_0_5", "soil_temp_5_15")
-
-suggested_vars <- names(predictors_multi) # this actually worked with pairs command
+# skipped non-overlapping distribution step in tutorial
 
 # inspect the variables for collinearity
-pairs(predictors_multi[[suggested_vars]])
+pairs(predictors_multi)
 
-# need a smaller sample to calculate collinearity between variables
-nrow(predictors_multi) # 8024 rows
-ncol(predictors_multi)
+# may need a smaller sample to calculate collinearity between variables
+
 # try sample size of 5000 cells
-predictors_sample <- terra::spatSample(predictors_multi, size = 100000, 
-                                       method = "random", replace = FALSE, 
-                                       na.rm = FALSE, as.raster = TRUE,
-                                       values = TRUE, cells = FALSE, xy = TRUE)
+# predictors_sample <- terra::spatSample(predictors_multi, size = 100000, 
+                                       # method = "random", replace = FALSE, 
+                                       # na.rm = FALSE, as.raster = TRUE,
+                                       # values = TRUE, cells = FALSE, xy = TRUE)
 
+# predictors_sample <- predictors_sample[[suggested_vars]]
 
 # subset to variables below 0.8 Pearson's correlation coefficient
-# start with 0.7 first (as done in tutorial)
 # predictors_multi = SpatRaster with predictor data (all numeric, no NAs)
-predictors_sample <- predictors_sample[[suggested_vars]]
+
 # below code was taking forever to run, but no delays in the bioclim code
-predictors_uncorr <- filter_high_cor(predictors_sample, cutoff = 0.7, 
-                                     verbose = FALSE, names = TRUE, to_keep = NULL)
+# sub predictors_multi with predictors_sample if code below won't run
+predictors_uncorr <- filter_high_cor(predictors_multi, cutoff = 0.8, 
+                                     verbose = TRUE, names = TRUE, to_keep = NULL)
 predictors_uncorr
 
 # remove highly correlated predictors
@@ -180,6 +162,7 @@ predictors_uncorr
   # need to retain class column (not in original tutorial code)
 ran_occ_th <- ran_occ_th %>% select(all_of(c(predictors_uncorr, "class")))
 
+# now subset the uncorrelated predictors within the multiraster
 ## or use predictors_sample[[predictors_uncorr]]
 predictors_multi <- predictors_multi[[predictors_uncorr]]
 predictors_multi
