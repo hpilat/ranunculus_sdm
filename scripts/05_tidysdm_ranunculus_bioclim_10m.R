@@ -7,6 +7,7 @@
 
 # dir.create("outputs/")
 
+
 library(tidysdm)
 library(tidyterra)
 library(sf)
@@ -19,18 +20,10 @@ library(overlapping)
 # read in na_bound_rast
 na_bound_rast <- rast("data/processed/na_bound_rast.tif")
 
-na_bound_sf <- read_sf("data/raw/continental_divide_buffer_boundary.shp")
-na_bound <- vect(na_bound_sf)
-
-# read in Ranunculus glaberrimus presence dataframe, 
-# dataframe with ID, latitude, and longitude columns
-ran_occ_download # tibble/dataframe
-
-# plot the presences on a map to visualize them
-# cast coordinates into an sf object and set its CRS to WGS84
-ran_occ_sf <- st_as_sf(ran_occ_download, coords = c("decimalLongitude", "decimalLatitude"))
-# set CRS to WGS84
-st_crs(ran_occ_sf) <- 4326
+# read in na_bound so predictors_multi can be masked
+na_bound <- read_sf("data/processed/na_bound_masked.shp")
+# vectorize na_bound to use as mask
+na_bound <- vect(na_bound)
 
 # check which datasets are available through pastclim:
 pastclim::get_available_datasets()
@@ -38,11 +31,12 @@ pastclim::get_available_datasets()
 
 # plot species occurrences directly on the raster used to extract climatic variables
 # get land mask for available datasets, use that as background for occurrences
-# download date: February 15th, 2024
+# download date: February 18th, 2024
 worldclim <- pastclim::download_dataset(dataset = "WorldClim_2.1_10m", 
                                         bio_variables = NULL, 
-                                        annual = FALSE, monthly = TRUE) 
-                                        # ^ alter this for monthly variables
+                                        annual = FALSE, monthly = TRUE)
+
+download_dataset("WorldClim_2.1_10m")
 # TRUE under values in environment = successful download
 
 # create land mask from pastclim
@@ -55,70 +49,88 @@ land_mask <- crop(land_mask, na_bound)
 # mask to the polygon
 land_mask <- mask(land_mask, na_bound)
 
+# read in Ranunculus glaberrimus presence dataframe, 
+# dataframe with ID, latitude, and longitude columns, cropped to spatial extent
+ran_occ # tibble/dataframe, cropped in data_prep script
+
+# cast coordinates into an sf object and set its CRS to WGS84
+ran_occ_sf <- st_as_sf(ran_occ, coords = c("decimalLongitude", "decimalLatitude"))
+# set CRS to WGS84
+st_crs(ran_occ_sf) <- 4326
+
+
+# plot occurrences directly on raster with predictor variables
+
 # use tidyterra package for plotting so ggplot can be used with terra rasters
+# aes(fill = layer) refers to column name in na_bound_rast
 ggplot()+
   geom_spatraster(data = land_mask, aes(fill = land_mask_1985)) +
   geom_sf(data = ran_occ_sf) # sf object with coordinates
-  
 
-## Thinning Occurrences ##
 
-# thin the observations to have one per cell in the raster
-  # works better when using an equal area projection
+
+### Thinning Occurrences ###
+
+
+
+# thin the occurrences to have one per cell in the na_bound_rast raster
 set.seed(1234567)
-ran_occ_sf <- thin_by_cell(ran_occ_sf, raster = land_mask)
-nrow(ran_occ_sf)
-# thinned from 3768 observations to 1079
+ran_occ_thin_cell <- thin_by_cell(ran_occ_sf, raster = na_bound_rast)
+nrow(ran_occ_thin_cell) # 2791
 
-# plot the thinned occurrences
 ggplot() +
   geom_spatraster(data = land_mask, aes(fill = land_mask_1985)) +
-  geom_sf(data = ran_occ_sf)
+  geom_sf(data = ran_occ) # thinned occurrences
 
-# thin occurrences further to remove points closer than 5km
-  # distance given in metres, use km2m to reduce number of 0s written for 20km
+# thin further to remove points closer than 5km
+# default is metres, could input 5000 or use km2m(5)
+# attempted 5km, filter_high_cor below wouldn't run, so try 10
+# 10 still didn't work, try 15?
 set.seed(1234567)
-ran_occ_thin <- thin_by_dist(ran_occ_sf, dist_min = km2m(5))
-nrow(ran_occ_thin)
+ran_occ_thin_dist <- thin_by_dist(ran_occ_sf, dist_min = km2m(10))
+nrow(ran_occ_thin_dist) # 1400 at 5km thinning, 1046 at 10km thinning
+# 1040 at 10km thinning with reduced spatial extent
 
-# plot the thinned occurrences again
 ggplot() +
   geom_spatraster(data = land_mask, aes(fill = land_mask_1985)) +
-  geom_sf(data = ran_occ_thin)
-                    
+  geom_sf(data = ran_occ_thin_dist) +
+  scale_x_continuous(limits = xlims) +
+  scale_y_continuous(limits = ylims)
 
-## Sample Pseudoabsences ##
 
-# constrain pseudoabsences to be minimum 50km away from presence points
-# add pseudoabsences to object with thinned occurrences
-# select 3 times as many pseudoabsences as presences 
-  # Barbet-Massin (2012) recommend a large number of pseudoabsences, 
-    # like 10 000, to adequately represent the different environmental conditions
 
+### Pseudoabsences ###
+
+
+
+# sample pseudoabsences/background points
+# constrain pseudoabsences to be between 5 and 15km from any presences
+# choice of 5 and 15km is arbitrary
+# select 10 times as many pseudoabsences as presences 
+# (recommended 10 000 pseudoabsences by lit review)
+# ran_occ_thin will then have presences and pseudoabsences
 set.seed(1234567)
-ran_occ_thin <- sample_pseudoabs(ran_occ_thin, 
-                                 n = 10 * nrow(ran_occ_thin), 
+ran_pres_abs <- sample_pseudoabs(ran_occ_thin_dist, 
+                                 n = 10 * nrow(ran_occ_thin_dist), 
                                  raster = land_mask, 
-                                 coords = NULL, 
-                                 method = c("dist_disc", km2m(5), km2m(15))
-                                 )
+                                 method = c("dist_disc", km2m(5), km2m(50))
+)
+nrow(ran_pres_abs) # 11 440
 
-# now plot the presences and absences
+# plot presences and absences
 ggplot() +
   geom_spatraster(data = land_mask, aes(fill = land_mask_1985)) +
-  geom_sf(data = ran_occ_thin, aes(col = class))
+  geom_sf(data = ran_pres_abs, aes(col = class))
 
 
 
 ### Variable Selection ###
 
-
-
 # see which variables are available from WorldClim dataset
 # 10 and 5m resolution available through pastclim
 climate_vars <- pastclim::get_vars_for_dataset("WorldClim_2.1_10m")
 climate_vars
- 
+
 # download dataset at the correct resolution (10 arcmin here, can do 5)
 download_dataset("WorldClim_2.1_10m")
 # dataset covers years 1970-2000, pastclim dates it at midpoint of 1985
@@ -132,133 +144,112 @@ climate_present <- pastclim::region_slice(
   crop = na_bound # SpatVector with area boundary
 )
 
-nrow(ran_occ_thin) # 11330
-summary(climate_present) # lots of NA values
-nrow(climate_present) # 401
+# Extract variables from predictors_multirast for all presences and pseudoabsences
+summary(climate_present) # 90 000 + NAs per column
+nrow(ran_pres_abs) # 11 440
+nrow(predictors_multi) # 4109
+ran_pres_abs_pred <- ran_pres_abs %>% 
+  bind_cols(terra::extract(climate_present, ran_pres_abs, ID = FALSE, na.rm = TRUE))
+nrow(ran_pres_abs_pred) # 11 440
+# after this step, no NA values in ran_occ_thin from tutorial
+# but I have NA values from predictors_multi
+summary(ran_pres_abs_pred) # still some NAs, bioclim script magically has none at this point
 
-# select variables noticeably different from the underlying background
-# first extract climate for all presences and pseudoabsences
-ran_occ_thin <- ran_occ_thin %>% 
-  bind_cols(terra::extract(climate_present, ran_occ_thin, ID = FALSE))
-summary(ran_occ_thin) # no NA values
-nrow(ran_occ_thin) # 11330, no reduction in # of rows
+# remove rows with NA values
+ran_pres_abs_pred <- na.omit(ran_pres_abs_pred)
+nrow(ran_pres_abs_pred) # 11 307, 133 rows removed
 
-# use violin plots to compare the distribution of climate variables for
-  # presences and pseudoabsences
-ran_occ_thin %>% plot_pres_vs_bg(class)
-
-# want to select variables where presences have different values from background
-  # rank variables based on the overlap of the respective density plots
-library(overlapping)
-ran_occ_thin %>% dist_pres_vs_bg(class)
-
-# select variables with at least 30% of non-overlapping distribution between
-  # presences and pseudoabsences
-# vars_to_keep <- ran_occ_thin %>% dist_pres_vs_bg(class)
-# vars_to_keep <- names(vars_to_keep[vars_to_keep > 0.30])
-# ran_occ_thin <- ran_occ_thin %>% select(all_of(c(vars_to_keep, "class")))
-# vars_to_keep
-
-# selected certain variables based on literature:
-# suggested_vars <- c("bio01", "bio05", "bio06", "bio07", "bio13", "bio14")
-
-# inspect the correlation among variables:
-# pairs(climate_present[[suggested_vars]])
-
-# subset to variables below a correlation threshold of 0.7
-# climate_present <- climate_present[[suggested_vars]]
-# vars_uncor <- filter_high_cor(climate_present, cutoff = 0.7)
-# vars_uncor
-
-# only left with 3 variables here, attempt to threshold all variables
-
-suggested_vars <- names(climate_present) # this actually worked with pairs command
+# skipped non-overlapping distribution step in tutorial
 
 # inspect the variables for collinearity
-# pairs(climate_present[[suggested_vars]])
+pairs(climate_present)
+
+# may need a smaller sample to calculate collinearity between variables
+
+# try sample size of 5000 cells
+# predictors_sample <- terra::spatSample(climate_present, size = 5000, 
+                                       #method = "random", replace = FALSE, 
+                                       # na.rm = FALSE, as.raster = TRUE,
+                                       # values = TRUE, cells = FALSE, xy = TRUE)
+
 
 # subset to variables below 0.8 Pearson's correlation coefficient
-# start with 0.7 first (as done in tutorial)
-# predictors_multi = SpatRaster with predictor data (all numeric, no NAs)
-climate_present <- climate_present[[suggested_vars]]
+# climate_present = SpatRaster with predictor data (all numeric, no NAs)
 
-# below code was taking forever to run, but no delays in the bioclim code
-vars_uncorr <- filter_high_cor(climate_present, cutoff = 0.8, 
-                                     verbose = FALSE, names = TRUE, to_keep = NULL)
-vars_uncorr
-# now left with 7 predictor  for 0.7 threshold
-# left with 10 predictors for 0.8 threshold (Feb. 17th run)
+predictors_uncorr <- filter_high_cor(climate_present, cutoff = 0.8, 
+                                     verbose = TRUE, names = TRUE, to_keep = NULL)
+predictors_uncorr
 
-# select uncorrelated variables
-ran_occ_thin <- ran_occ_thin %>% select(all_of(c(vars_uncorr, "class")))
-climate_present <- climate_present[[vars_uncorr]]
+# remove highly correlated predictors
+# here is where the "class" column gets dropped, which messes up recipe below
+# need to retain class column (not in original tutorial code)
+ran_pres_abs_pred <- ran_pres_abs_pred %>% select(all_of(c(predictors_uncorr, "class")))
 
-
-
-## Model Fitting ##
+# now subset the uncorrelated predictors within climate_present
+climate_present_uncorr <- climate_present[[predictors_uncorr]]
 
 
 
+#### Fit the model by cross-validation ####
 
-# fit the model by cross-validation
-# need to set up a recipe to define how to handle our dataset
-ran_recipe <- recipe(ran_occ_thin, formula = class ~ .)
+
+
+# use a recipe to define how to handle our dataset
+# need to define the formula (class is the outcome, all other variables are predictors)
+# for sf objects, geometry is auto-replaced by X and Y and assigned as coords, therefore not used as predictors
+ran_recipe <- recipe(ran_pres_abs_pred, formula = class ~ .)
 ran_recipe
-# class = outcome, predictors = 3 chosen, coords= x and y
-# assumption is that the level of interest for the response (presences) is
-  # the reference level
-# confirm the data are correctly formatted:
-ran_occ_thin %>% check_sdm_presence(class)
-# output says TRUE
 
-# now build a workflow_set of different models
-# used glm, random forest, boosted trees, and maxent here
-# tidysdm automatically chooses the most important model parameters
-# model parameters come from the tidymodels parsnip package
-# can add GAM but have to select parameters (otherwise models fail lines 187-198)
+# tidymodels assumes the level of interest for the response (presences) is the reference level
+# confirm the data are correctly formatted
+ran_pres_abs_pred %>% check_sdm_presence(class)
+
+# build a workflow_set of different models, defining which hyperparameters we want to tune
+# for most commonly used models, tidysdm auto chooses the most important parameters
 ran_models <- 
   workflow_set(
     preproc = list(default = ran_recipe), 
     models = list(
-      glm = sdm_spec_glm(), # standard glm specs
+      glm = sdm_spec_glm(), # standard GLM specs
       rf = sdm_spec_rf(), # rf specs with tuning
-      gbm = sdm_spec_boost_tree(), # boosted tree model specs with tuning
+      gbm = sdm_spec_boost_tree(), # boosted tree specs with tuning
       maxent = sdm_spec_maxent() # maxent specs with tuning
     ), 
-    cross= TRUE # make all combinations of preproc and models
+    # make all combos of preproc and models:
+    cross = TRUE
   ) %>% 
-  option_add(control = control_ensemble_grid()) 
-      # ^ tweak controls to store info needed later to create the ensemble
+  # tweak controls to store information needed later to create the ensemble
+  option_add(control = control_ensemble_grid())
 
-# set up a spatial block cross-validation scheme to tune and assess models
-  # 80:20 split
-# insert watersheds layer here when conducting sensitivity analysis?
+# set up spatial block cross-validation to tune and assess models:
+# 80:20 split with 5 folds (v = 5) (supported by literature review)
 set.seed(100)
-ran_cross_val <- spatialsample::spatial_block_cv(ran_occ_thin, v = 5)
+ran_cross_val <- spatial_block_cv(ran_pres_abs_pred, v = 5)
 autoplot(ran_cross_val)
 
-# use block cross validation folds to tune and assess the models
-# used 3 combinations of hyperparameters per model (far too few for reality)
-# need to change grid = 3 to a higher number
-library(ranger)
-library(xgboost)
+# use block CV folds to tune and assess models
+# tutorial uses 3 combos of hyperparameters and says this is far too few for real life
+# 10 combos of hyperparameters = ~ 3 mins computation time, less crowded plots
+# 20 combos of hyperparameters = ~ 3 mins computation time, crowded plots
+# 10 combos = 25 minute computation time on February 14th
 set.seed(1234567)
 ran_models <- 
   ran_models %>% 
   workflow_map("tune_grid", 
-               resamples = ran_cross_val, grid = 10, # grid needs to increase
-               metrics = sdm_metric_set(), verbose = TRUE)
-# warning messages: no event observations were detected in 'truth with 
-  # event level 'presence'
-# workflow_set should correctly detect no tuning parameters for GLM
+               resamples = ran_cross_val, grid = 10, # attempting 10 combos of hyperparameters
+               metrics = sdm_metric_set(), verbose = TRUE
+  ) 
 
-# look at the performance of the models:
+# want workflow_set to correctly detect no tuning parameters for GLM
+# inspect performance of models:
 autoplot(ran_models)
 model_metrics <- collect_metrics(ran_models)
-# metrics are Boyce continuous index, TSS max, and ROC AUC
+
 
 
 ## Ensemble ##
+
+
 
 # use AUC as metric to choose best
   # random forest and boosted tree models
@@ -275,24 +266,24 @@ ran_ensemble_metrics <- collect_metrics(ran_ensemble)
 ## Projecting to the Present ##
 
 # make predictions with the ensemble
-prediction_present <- predict_raster(ran_ensemble, climate_present)
+prediction_present <- predict_raster(ran_ensemble, climate_present_uncorr)
 ggplot() +
   geom_spatraster(data = prediction_present, aes(fill = mean)) +
   scale_fill_terrain_c() + # "c" for continuous variables
   # plot the presences used in the model
-  geom_sf(data = ran_occ_thin %>% filter(class == "presence"))
+  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 
 # subset the model to only use the best models, based on AUC
 # set threshold of 0.8 for AUC
 # take the median of the available model predictions (mean is the default)
-prediction_present_best_bioclim <- predict_raster(ran_ensemble, climate_present, 
+prediction_present_best <- predict_raster(ran_ensemble, climate_present_uncorr, 
                                            metric_thresh = c("roc_auc", 0.8), 
                                            fun= "median")
 
 ggplot() +
-  geom_spatraster(data = prediction_present_best_bioclim, aes(fill = median)) +
+  geom_spatraster(data = prediction_present_best, aes(fill = median)) +
   scale_fill_terrain_c() + # c = continuous
-  geom_sf(data = ran_occ_thin %>% filter(class == "presence"))
+  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 # if plot doesn't change much, models are consistent
 # model gives us probability of occurrence
 # can convert to binary predictions (present vs absence)
@@ -302,28 +293,28 @@ ran_ensemble_binary <- calib_class_thresh(ran_ensemble,
                                           )
 
 prediction_present_binary <- predict_raster(ran_ensemble_binary, 
-                                            climate_present, 
+                                            climate_present_uncorr, 
                                             type = "class", 
                                             class_thresh = c("tss_max"))
 prediction_present_binary
 
 ggplot() +
   geom_spatraster(data = prediction_present_binary, aes(fill = binary_mean)) +
-  geom_sf(data = ran_occ_thin %>% filter(class == "presence"))
+  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 
 # turn presence into polygon so we can calculate suitable area
 # first need to filter out presence cells from raster
-prediction_present_pres <- prediction_present_binary %>% 
+prediction_present_presence <- prediction_present_binary %>% 
   filter(binary_mean == "presence")
 
 # repeat for absences? May not be entirely useful information
 
 # vectorize raster to get a polygon around presences
 # need to turn raster into data.frame first
-prediction_present_pres <- as.polygons(prediction_present_pres)
+prediction_present_presence <- as.polygons(prediction_present_presence)
 
 # now turn prediction_present_pres polygons into sf object
-prediction_present_sf <- st_as_sf(prediction_present_pres)
+prediction_present_sf <- st_as_sf(prediction_present_presence)
 
 crs(prediction_present_sf) # WGS84
 
@@ -408,7 +399,7 @@ prediction_future_binary
 
 ggplot() +
   geom_spatraster(data = prediction_future_binary, aes(fill = binary_mean)) +
-  geom_sf(data = ran_occ_thin %>% filter(class == "presence"))
+  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 
 # turn presence into polygon so we can calculate suitable area
 # first need to filter out presence cells from raster
@@ -634,7 +625,7 @@ set.seed(123) # make sure seed is set outside of the loop
 
 for (i_repeat in 1:3) {
   # thin the data
-  ran_thin_rep <- thin_by_cell(ran_occ_sf, raster = climate_present)
+  ran_thin_rep <- thin_by_cell(ran_pres_abs_pred, raster = climate_present)
   ran_thin_rep <- thin_by_dist(ran_thin_rep, dist_min = 5000)
   # sample pseudo-absences
   ran_thin_rep <- sample_pseudoabs(ran_thin_rep,
