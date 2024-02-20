@@ -20,6 +20,7 @@ library(overlapping)
 # read in na_bound_rast
 na_bound_rast <- rast("data/processed/na_bound_rast.tif")
 
+
 # read in na_bound so predictors_multi can be masked
 na_bound <- read_sf("data/processed/na_bound_masked.shp")
 # vectorize na_bound to use as mask
@@ -30,17 +31,11 @@ na_bound <- vect(na_bound)
 predictors_multi <- rast("data/processed/predictors_multi.tif")
 
 # mask the multiraster to the extent (all values outside na_bound set to NA)
-predictors_multi <- crop(predictors_multi, na_bound)
+predictors_multi <- crop(predictors_multi, extent.test)
 predictors_multi <- mask(predictors_multi, na_bound)
 
-# read in Ranunculus glaberrimus presence dataframe, 
-# dataframe with ID, latitude, and longitude columns, cropped to spatial extent
-ran_occ # tibble/dataframe, cropped in data_prep script
-
-# cast coordinates into an sf object and set its CRS to WGS84
-ran_occ_sf <- st_as_sf(ran_occ, coords = c("decimalLongitude", "decimalLatitude"))
-# set CRS to WGS84
-st_crs(ran_occ_sf) <- 4326
+# read in Ranunculus glaberrimus occurrences:
+ran_occ_sf <- st_read(dsn = "data/processed/ran_occ_sf.shp")
 
 
 # plot occurrences directly on raster with predictor variables
@@ -60,7 +55,7 @@ ggplot()+
 # thin the occurrences to have one per cell in the na_bound_rast raster
 set.seed(1234567)
 ran_occ_thin_cell <- thin_by_cell(ran_occ_sf, raster = na_bound_rast)
-nrow(ran_occ_thin_cell) # 2791
+nrow(ran_occ_thin_cell) # 2462
 
 ggplot() +
   geom_spatraster(data = na_bound_rast, aes(fill = layer)) +
@@ -111,9 +106,9 @@ ggplot() +
 ### Variable Selection ###
 
 # Extract variables from predictors_multirast for all presences and pseudoabsences
-summary(predictors_multi) # 90 000 + NAs per column
+summary(predictors_multi) # 60 000 + NAs per column
 nrow(ran_pres_abs) # 11 440
-nrow(predictors_multi) # 4109
+nrow(predictors_multi) # 4638
 ran_pres_abs_pred <- ran_pres_abs %>% 
   bind_cols(terra::extract(predictors_multi, ran_pres_abs, ID = FALSE, na.rm = TRUE))
 nrow(ran_pres_abs_pred) # 11 440
@@ -123,7 +118,7 @@ summary(ran_pres_abs_pred) # still some NAs, bioclim script magically has none a
 
 # remove rows with NA values
 ran_pres_abs_pred <- na.omit(ran_pres_abs_pred)
-nrow(ran_pres_abs_pred) # 11 307, 133 rows removed
+nrow(ran_pres_abs_pred) # 11 310, 130 rows removed
 
 # skipped non-overlapping distribution step in tutorial
 
@@ -151,7 +146,7 @@ predictors_uncorr
 # remove highly correlated predictors
 # here is where the "class" column gets dropped, which messes up recipe below
   # need to retain class column (not in original tutorial code)
-ran_occ_th <- ran_occ_th %>% select(all_of(c(predictors_uncorr, "class")))
+ran_pres_abs_pred <- ran_pres_abs_pred %>% select(all_of(c(predictors_uncorr, "class")))
 
 # now subset the uncorrelated predictors within the multiraster
 predictors_multi_uncorr <- predictors_multi[[predictors_uncorr]]
@@ -243,17 +238,19 @@ ran_ensemble_metrics <-  collect_metrics(ran_ensemble)
 # predictions using the ensemble
 # default is taking the mean of the predictions from each model
 # line below uses over 10GB of RAM
+# need to input uncorrelated predictor data
 prediction_present_multirast <- predict_raster(ran_ensemble, predictors_multi_input)
 
 ggplot() +
   geom_spatraster(data = prediction_present_multirast, aes (fill = mean)) +
   scale_fill_terrain_c() + # c for continuous
-  geom_sf(data = ran_occ_th %>% filter(class == "presence"))
+  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 
 # subset the ensemble to only use the best models (AUC > 0.8)
+  # note: had to subset to 0.7 to include any models
 # take the median of the available model predictions (default is the mean)
 prediction_present_best <- predict_raster(ran_ensemble, predictors_multi_input, 
-                                         metric_thresh = c("roc_auc", 0.8), 
+                                         metric_thresh = c("roc_auc", 0.7), 
                                          fun = "median"
                                          )
 
@@ -265,13 +262,13 @@ ggplot() +
 # desirable to have binary predictions (presence/absence) rather than probability of occurrence
   # calibrate threshold used to convert probabilities into classes
 ran_ensemble <- calib_class_thresh(ran_ensemble,
-                                   class_thresh = "roc_auc"
+                                   class_thresh = "tss_max"
                                    )
 
 prediction_present_binary <- predict_raster(ran_ensemble, 
                                             predictors_multi_input, 
                                             type = "class", 
-                                            class_thresh = c("roc_auc")
+                                            class_thresh = c("tss_max")
                                             )
 
 ggplot() +
@@ -296,14 +293,15 @@ crs(prediction_present_sf) # WGS84
 # reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
 prediction_present_area <- st_transform(prediction_present_sf, "EPSG:3005")
 prediction_present_area <- st_set_crs(prediction_present_sf, "EPSG:3005")
-prediction_present_area <- st_area(prediction_present_sf) # ____ m^2
+prediction_present_area <- st_area(prediction_present_sf) # 4.41e+11 m^2
 # convert from m^2 to km^2
 prediction_present_area <- st_area(prediction_present_sf)/1000000
 prediction_present_area <- units::set_units(st_area(prediction_present_sf), km^2) 
-# ____ km^2 of suitable habitat
+# 440 861 km^2 of suitable habitat
 
 # divide predicted present area by total study area to get proportion
 proportion_suitable_present <- prediction_present_area/na_bound_area
+# 11.6%
 
 
 #### Visualizing the Contribution of Individual Variables ####
@@ -541,8 +539,9 @@ ran_thin_rep_ens
 
 # predict by taking the mean and median of all models
 ran_thin_rep_ens <- predict_raster(ran_thin_rep_ens, 
-                                   predictors_multi, 
-                                   fun = c("mean", "median"))
+                                   predictors_multi_input, 
+                                   fun = c("mean", "median")
+                                   )
 
 ggplot() +
   geom_spatraster(data = ran_thin_rep_ens, aes(fill = median)) +

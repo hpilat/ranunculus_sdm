@@ -3,51 +3,12 @@
 # Please first run these scripts in the following order:
   # 01_data_download_ranunculus.R
   # 02_continental_divide.Rmd
+  # 03_extents.R
 
 
-## Spatial Extent ##
 
-# for faster computation after initial run, can just run lines 38, 39, 50, and 332. 
-
-# Skeetchestn territory:
-# SNRC provided shapefile of Skeetchestn traditional territory
-# Read in Skeetchestn territory shapefile as sf object first, so we can calculate
-  # the area in km^2
-skeetch_sf <- read_sf("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
-plot(skeetch_sf)
-crs(skeetch_sf) # BC Albers, NAD83
-skeetch_area <- st_area(skeetch_sf) # 7e+09 m^2
-# convert from m^2 to km^2
-skeetch_area <- st_area(skeetch_sf)/1000000
-skeetch_area <- units::set_units(st_area(skeetch_sf), km^2) #6996 km^2
-
-# Vectorize this shapefile so it can be rasterized
-# skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
-# reproject to WGS84
-# skeetch_vect <- project(skeetch_vect, "EPSG:4326")
-# precip_skeetch <- crop(precip, skeetch_vect)
-# dimensions of precip_skeetch are nrow = 132 and ncol = 142, which we'll use 
-    # for setting the dimensions of the temporary raster
-    # this may change when increasing the resolution for Skeetch-specific data
-# precip_skeetch <- mask(precip_skeetch, skeetch_vect)
-
-
-# Create an empty template raster for inputting as a basemap into tidysdm
-# Unsure what # of columns to use here
-# temprast <- rast(skeetch_vect, ncols = 142, nrows = 132)
-# skeetch_rast <- rasterize(skeetch_vect, temprast)
-# will use higher resolution data for Skeetch extent
-
-# reproject skeetch_rast to WGS 84
-# skeetch_rast <- project(skeetch_rast, "EPSG:4326")
-
-# resample skeetch_rast to different resolution
-# skeetch_rast <- resample(skeetch_rast, soil_temp_0_5)
-
-# mask skeetch_rast so all cells outside of boundary are NA
-# skeetch_rast <- mask(skeetch_rast, skeetch_vect)
-
-
+### Spatial Extents ##
+# required in order for projection code to run for tidysdm_ranunculus_multirast.R
 
 # North American extent (west coast to continental divide)
 # new geographic extent created in continental_divide.Rmd
@@ -56,41 +17,24 @@ na_bound_sf <- read_sf("data/raw/continental_divide_buffer_boundary.shp")
 plot(na_bound_sf)
 crs(na_bound_sf) # WGS84
 
-# reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
-na_bound_area <- st_transform(na_bound_sf, "EPSG:3005")
-na_bound_area <- st_set_crs(na_bound_sf, "EPSG:3005")
-# calculate study area, in m^2 (default)
-na_bound_area <- st_area(na_bound_sf) # 9.21e+12 m^2
-# convert from m^2 to km^2
-na_bound_area <- st_area(na_bound_sf)/1000000
-na_bound_area <- units::set_units(st_area(na_bound_sf), km^2) # 9 198 629 km^2
-
 # vectorize the na_bound sf object so it can be rasterized
 # need this empty raster as a base layer for tidysdm pipeline
-na_bound <- vect(na_bound_sf)
+na_bound_vect <- vect(na_bound_sf)
 
 # create an empty raster based on study extent in order to rasterize na_bound
-  # to use as a basemap for TidySDM
-temprast <- rast(na_bound, ncols = 12247, nrows = 8024)
-na_bound_rast <- rasterize(na_bound, temprast)
+# to use as a basemap for TidySDM
+temprast <- rast(na_bound_vect, ncols = 12247, nrows = 8024)
+na_bound_rast <- rasterize(na_bound_vect, temprast)
 
 # write empty raster to file
-na_bound_rast <- writeRaster(na_bound_rast, filename = "data/processed/na_bound_rast.tif")
+na_bound_rast <- writeRaster(na_bound_rast, filename = "data/processed/na_bound_rast.tif", overwrite = TRUE)
 
 # read in na_bound_rast
 na_bound_rast <- rast("data/processed/na_bound_rast.tif")
 
-
-
-## Occurrence Data ##
-
-# clean the occurrence records using CoordinateCleaner package?
-# record-level tests
-
-# cl_coord_ran <- clean_coordinates(x = ran_occ_download, lon = "decimalLongitude", 
-#  lat = "decimalLatitude",
-#  species = "scientificName")
-
+# when testing out the code, we found R would crash with the original extent
+# create new bounds for reduced extent
+# first need to bring in occurrence data
 # select only the relevant columns: ID column, longitude, latitude
 ran_occ <- dplyr::select(ran_occ_download, gbifID, 
                          decimalLongitude, decimalLatitude) # dataframe
@@ -99,17 +43,77 @@ ran_occ <- dplyr::select(ran_occ_download, gbifID,
 ran_occ_vect <- vect(ran_occ, geom = c("decimalLongitude", "decimalLatitude"), 
                      crs = "EPSG:4326", keepgeom = FALSE)
 
-# crop the SpatVector to the extent of the study area
-ran_occ <- crop(ran_occ_vect, na_bound)
-ran_occ
-
 # cast coordinates into an sf object and set its CRS to WGS84
 ran_occ_sf <- st_as_sf(ran_occ, coords = c("decimalLongitude", "decimalLatitude"))
 # set CRS to WGS84
 st_crs(ran_occ_sf) <- 4326
 
+xlims <- c(ext(ran_occ_sf)$xmin - 2, ext(ran_occ_sf)$xmax + 2)
+ylims <- c(ext(ran_occ_sf)$ymin - 2, ext(ran_occ_sf)$ymax + 15)
+# additional space north to account for potential northward shifts
+
+# xlims <- c(-130, -102.5)
+# ylims <- c(30, 70)
+
+# now crop and mask all layers:
+extent.test <- terra::ext(xlims, ylims)
+na_bound_rast <- crop(na_bound_rast, extent.test)
+na_bound_sf <- st_crop(na_bound_sf, extent.test)
+ran_occ_sf <- st_crop(ran_occ_sf, extent.test)
+
+# write na_bound_rast to file for reuse
+writeRaster(na_bound_rast, filename = "data/processed/na_bound_rast.tif", overwrite = TRUE)
+
+# vectorize na_bound_sf so we can use it as a mask
+na_bound_vect <- vect(na_bound_sf)
+na_bound_masked <- mask(na_bound_vect, na_bound_vect)
+# turn back into sf object so we can compute area
+na_bound_sf_masked <- st_as_sf(na_bound_masked)
+
+# now use na_bound_masked as a mask for ran_occ_vect
+ran_occ_vect_masked <- mask(ran_occ_vect, na_bound_masked)
+
+# convert to sf object for use in modelling scripts
+ran_occ_sf <- st_as_sf(ran_occ_vect_masked)
+
+# write ran_occ_sf to file for reuse
+st_write(ran_occ_sf, dsn = "data/processed/ran_occ_sf.shp", append = FALSE)
+
+
+# study area calculations:
+
+# reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
+na_bound_area <- st_transform(na_bound_sf_masked, "EPSG:3005")
+na_bound_area <- st_set_crs(na_bound_sf_masked, "EPSG:3005")
+# calculate study area, in m^2 (default)
+na_bound_area <- st_area(na_bound_sf_masked) # 3.9e+12 m^2
+# convert from m^2 to km^2
+na_bound_area <- st_area(na_bound_sf_masked)/1000000
+na_bound_area <- units::set_units(st_area(na_bound_sf_masked), km^2) # 3 898 033 km^2
+
+
+# Skeetchestn territory:
+# SNRC provided shapefile of Skeetchestn traditional territory
+# Read in Skeetchestn territory shapefile as sf object first, so we can calculate
+# the area in km^2
+skeetch_sf <- read_sf("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
+plot(skeetch_sf)
+crs(skeetch_sf) # BC Albers, NAD83
+skeetch_area <- st_area(skeetch_sf) # 7e+09 m^2
+# convert from m^2 to km^2
+skeetch_area <- st_area(skeetch_sf)/1000000
+skeetch_area <- units::set_units(st_area(skeetch_sf), km^2) #6996 km^2
+
+# Vectorize this shapefile so it can be used to mask model outputs from larger extent
+# to view skeetch territory
+skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
+# reproject to WGS84
+skeetch_vect <- project(skeetch_vect, "EPSG:4326")
+
+
 
 ## Predictor Data ##
+
 
 ## Numeric Rasters:
 

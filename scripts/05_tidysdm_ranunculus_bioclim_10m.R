@@ -19,11 +19,11 @@ library(overlapping)
 # new geographic extent created in continental_divide.Rmd
 # read in na_bound_rast
 na_bound_rast <- rast("data/processed/na_bound_rast.tif")
+na_bound_sf <- read_sf("data/raw/continental_divide_buffer_boundary.shp")
+na_bound_vect <- vect(na_bound_sf)
 
-# read in na_bound so predictors_multi can be masked
-na_bound <- read_sf("data/processed/na_bound_masked.shp")
-# vectorize na_bound to use as mask
-na_bound <- vect(na_bound)
+# read in Ranunculus glaberrimus occurrences:
+ran_occ_sf <- st_read(dsn = "data/processed/ran_occ_sf.shp")
 
 # check which datasets are available through pastclim:
 pastclim::get_available_datasets()
@@ -45,19 +45,9 @@ land_mask <-
   pastclim::get_land_mask(time_ce = 1985, dataset = "WorldClim_2.1_10m")
 
 # crop the extent of the land mask to match our study's extent
-land_mask <- crop(land_mask, na_bound)
+land_mask <- crop(land_mask, na_bound_vect)
 # mask to the polygon
-land_mask <- mask(land_mask, na_bound)
-
-# read in Ranunculus glaberrimus presence dataframe, 
-# dataframe with ID, latitude, and longitude columns, cropped to spatial extent
-ran_occ # tibble/dataframe, cropped in data_prep script
-
-# cast coordinates into an sf object and set its CRS to WGS84
-ran_occ_sf <- st_as_sf(ran_occ, coords = c("decimalLongitude", "decimalLatitude"))
-# set CRS to WGS84
-st_crs(ran_occ_sf) <- 4326
-
+land_mask <- mask(land_mask, na_bound_vect)
 
 # plot occurrences directly on raster with predictor variables
 
@@ -76,11 +66,11 @@ ggplot()+
 # thin the occurrences to have one per cell in the na_bound_rast raster
 set.seed(1234567)
 ran_occ_thin_cell <- thin_by_cell(ran_occ_sf, raster = na_bound_rast)
-nrow(ran_occ_thin_cell) # 2791
+nrow(ran_occ_thin_cell) # 2462
 
 ggplot() +
   geom_spatraster(data = land_mask, aes(fill = land_mask_1985)) +
-  geom_sf(data = ran_occ) # thinned occurrences
+  geom_sf(data = ran_occ_thin_cell) # thinned occurrences
 
 # thin further to remove points closer than 5km
 # default is metres, could input 5000 or use km2m(5)
@@ -94,8 +84,6 @@ nrow(ran_occ_thin_dist) # 1400 at 5km thinning, 1046 at 10km thinning
 ggplot() +
   geom_spatraster(data = land_mask, aes(fill = land_mask_1985)) +
   geom_sf(data = ran_occ_thin_dist) +
-  scale_x_continuous(limits = xlims) +
-  scale_y_continuous(limits = ylims)
 
 
 

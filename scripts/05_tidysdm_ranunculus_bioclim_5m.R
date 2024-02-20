@@ -22,10 +22,8 @@ library(overlapping)
 # read in na_bound_rast
 na_bound_rast <- rast("data/processed/na_bound_rast.tif")
 
-# read in na_bound so predictors_multi can be masked
-na_bound <- read_sf("data/processed/na_bound_masked.shp")
-# vectorize na_bound to use as mask
-na_bound <- vect(na_bound)
+# read in Ranunculus glaberrimus occurrences:
+ran_occ_sf <- st_read(dsn = "data/processed/ran_occ_sf.shp")
 
 # check which datasets are available through pastclim:
 pastclim::get_available_datasets()
