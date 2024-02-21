@@ -1,11 +1,9 @@
 # Following tidysdm tutorial, we input Ranunculus glaberrimus occurrence records 
-# and WorldClim predictors into the tidysdm pipeline
+# and WorldClim predictors at 5 arcmin (?) resolution into the tidysdm pipeline
 # Please first run scripts in the following order: 
 # 01_data_download_ranunculus.R
 # 02_continental_divide.Rmd
 # 03_data_prep_ranunculus.R
-
-# this particular script is run with 5m WorldClim data instead of 10m
 
 # dir.create("outputs/")
 
@@ -18,11 +16,18 @@ library(ggplot2)
 library(overlapping)
 
 # North American extent (west coast to continental divide)
-# new geographic extent created in continental_divide.Rmd
-# read in na_bound_rast
+# new geographic extent created in 02_continental_divide.Rmd
+# extent cropped to smaller extent in 03_data_prep_ranunculus.R
+# read in extent objects:
+# raster to use as a basemap
 na_bound_rast <- rast("data/processed/na_bound_rast.tif")
+# sf object to use for area calculations
+na_bound_sf <- read_sf("data/processed/na_bound_masked.shp")
+# vector object to use for masking (if needed)
+na_bound_vect <- vect("data/processed/na_bound_vect.shp")
 
 # read in Ranunculus glaberrimus occurrences:
+# cropped to proper study extent in 03_data_prep_ranunculus.R
 ran_occ_sf <- st_read(dsn = "data/processed/ran_occ_sf.shp")
 
 # check which datasets are available through pastclim:
@@ -45,19 +50,9 @@ land_mask <-
   pastclim::get_land_mask(time_ce = 1985, dataset = "WorldClim_2.1_5m")
 
 # crop the extent of the land mask to match our study's extent
-land_mask <- crop(land_mask, na_bound)
+land_mask <- crop(land_mask, na_bound_vect)
 # mask to the polygon
-land_mask <- mask(land_mask, na_bound)
-
-# read in Ranunculus glaberrimus presence dataframe, 
-# dataframe with ID, latitude, and longitude columns, cropped to spatial extent
-ran_occ # tibble/dataframe, cropped in data_prep script
-
-# cast coordinates into an sf object and set its CRS to WGS84
-ran_occ_sf <- st_as_sf(ran_occ, coords = c("decimalLongitude", "decimalLatitude"))
-# set CRS to WGS84
-st_crs(ran_occ_sf) <- 4326
-
+land_mask <- mask(land_mask, na_bound_vect)
 
 # plot occurrences directly on raster with predictor variables
 
@@ -76,16 +71,16 @@ ggplot()+
 # thin the occurrences to have one per cell in the na_bound_rast raster
 set.seed(1234567)
 ran_occ_thin_cell <- thin_by_cell(ran_occ_sf, raster = na_bound_rast)
-nrow(ran_occ_thin_cell) # 2791
+nrow(ran_occ_thin_cell) # 2462
 
 ggplot() +
   geom_spatraster(data = land_mask, aes(fill = land_mask_1985)) +
-  geom_sf(data = ran_occ) # thinned occurrences
+  geom_sf(data = ran_occ_thin_cell) # thinned occurrences
 
 # thin further to remove points closer than 5km
 # default is metres, could input 5000 or use km2m(5)
 # attempted 5km, filter_high_cor below wouldn't run, so try 10
-# 10 still didn't work, try 15?
+# 10 chosen somewhat arbitrarily, gets us around 1000 presences
 set.seed(1234567)
 ran_occ_thin_dist <- thin_by_dist(ran_occ_sf, dist_min = km2m(10))
 nrow(ran_occ_thin_dist) # 1400 at 5km thinning, 1046 at 10km thinning
@@ -93,9 +88,7 @@ nrow(ran_occ_thin_dist) # 1400 at 5km thinning, 1046 at 10km thinning
 
 ggplot() +
   geom_spatraster(data = land_mask, aes(fill = land_mask_1985)) +
-  geom_sf(data = ran_occ_thin_dist) +
-  scale_x_continuous(limits = xlims) +
-  scale_y_continuous(limits = ylims)
+  geom_sf(data = ran_occ_thin_dist)
 
 
 
@@ -108,7 +101,7 @@ ggplot() +
 # choice of 5 and 15km is arbitrary
 # select 10 times as many pseudoabsences as presences 
 # (recommended 10 000 pseudoabsences by lit review)
-# ran_occ_thin will then have presences and pseudoabsences
+# ran_pres_abs will then have presences and pseudoabsences
 set.seed(1234567)
 ran_pres_abs <- sample_pseudoabs(ran_occ_thin_dist, 
                                  n = 10 * nrow(ran_occ_thin_dist), 
@@ -141,28 +134,27 @@ climate_present <- pastclim::region_slice(
   time_ce = 1985, 
   bio_variables = climate_vars, 
   data = "WorldClim_2.1_5m", 
-  crop = na_bound # SpatVector with area boundary
+  crop = na_bound_vect # SpatVector with area boundary
 )
 
 # Extract variables from predictors_multirast for all presences and pseudoabsences
-summary(climate_present) # 90 000 + NAs per column
+summary(climate_present) # 50 000 + NAs per column
 nrow(ran_pres_abs) # 11 440
-nrow(predictors_multi) # 4109
+nrow(climate_present) # 404
+
 ran_pres_abs_pred <- ran_pres_abs %>% 
   bind_cols(terra::extract(climate_present, ran_pres_abs, ID = FALSE, na.rm = TRUE))
-nrow(ran_pres_abs_pred) # 11 440
-# after this step, no NA values in ran_occ_thin from tutorial
-# but I have NA values from predictors_multi
-summary(ran_pres_abs_pred) # still some NAs, bioclim script magically has none at this point
 
-# remove rows with NA values
-ran_pres_abs_pred <- na.omit(ran_pres_abs_pred)
-nrow(ran_pres_abs_pred) # 11 307, 133 rows removed
+nrow(ran_pres_abs_pred) # 11 440
+
+# after this step, no NA values in ran_pres_abs_pred equivalent from tutorial
+# but I have NA values from predictors_multi
+summary(ran_pres_abs_pred) # no more NAs 
 
 # skipped non-overlapping distribution step in tutorial
 
 # inspect the variables for collinearity
-pairs(climate_present)
+# pairs(climate_present) # error says figure margins are too large
 
 # may need a smaller sample to calculate collinearity between variables
 
@@ -206,6 +198,7 @@ ran_pres_abs_pred %>% check_sdm_presence(class)
 
 # build a workflow_set of different models, defining which hyperparameters we want to tune
 # for most commonly used models, tidysdm auto chooses the most important parameters
+# GAM has no hyperparameters so have to specify tune = "none"
 ran_models <- 
   workflow_set(
     preproc = list(default = ran_recipe), 
@@ -214,6 +207,8 @@ ran_models <-
       rf = sdm_spec_rf(), # rf specs with tuning
       gbm = sdm_spec_boost_tree(), # boosted tree specs with tuning
       maxent = sdm_spec_maxent() # maxent specs with tuning
+     # gam = sdm_spec_gam(tune = "none"), need to use fit() for this to work, 
+     # but unsure where to input that
     ), 
     # make all combos of preproc and models:
     cross = TRUE
@@ -236,7 +231,7 @@ set.seed(1234567)
 ran_models <- 
   ran_models %>% 
   workflow_map("tune_grid", 
-               resamples = ran_cross_val, grid = 10, # attempting 10 combos of hyperparameters
+               resamples = ran_cross_val, grid = 10, # 10 combos of hyperparameters
                metrics = sdm_metric_set(), verbose = TRUE
   ) 
 
@@ -257,13 +252,17 @@ model_metrics <- collect_metrics(ran_models)
 # training dataset and therefore ready to make predictions
 ran_ensemble <- simple_ensemble() %>% 
   add_member(ran_models, metric = "roc_auc")
-# can also use roc_auc and tss_max as metrics
+# can also use boyce_cont and tss_max as metrics
 ran_ensemble
 autoplot(ran_ensemble)
 collect_metrics(ran_ensemble) # need to update tidysdm version for this to work
 ran_ensemble_metrics <- collect_metrics(ran_ensemble)
 
+
+
 ## Projecting to the Present ##
+
+
 
 # make predictions with the ensemble
 prediction_present <- predict_raster(ran_ensemble, climate_present_uncorr)
@@ -272,6 +271,9 @@ ggplot() +
   scale_fill_terrain_c() + # "c" for continuous variables
   # plot the presences used in the model
   geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
+
+
+## skipped below step because all models are below AUC 0.8
 
 # subset the model to only use the best models, based on AUC
 # set threshold of 0.8 for AUC
@@ -286,16 +288,17 @@ ggplot() +
   geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 # if plot doesn't change much, models are consistent
 # model gives us probability of occurrence
-# can convert to binary predictions (present vs absence)
 
+# can convert to binary predictions (present vs absence)
 ran_ensemble_binary <- calib_class_thresh(ran_ensemble, 
                                           class_thresh = "tss_max"
-)
+                                          )
 
 prediction_present_binary <- predict_raster(ran_ensemble_binary, 
                                             climate_present_uncorr, 
                                             type = "class", 
-                                            class_thresh = c("tss_max"))
+                                            class_thresh = c("tss_max")
+                                            )
 prediction_present_binary
 
 ggplot() +
@@ -315,21 +318,32 @@ prediction_present_presence <- as.polygons(prediction_present_presence)
 
 # now turn prediction_present_pres polygons into sf object
 prediction_present_sf <- st_as_sf(prediction_present_presence)
-
 crs(prediction_present_sf) # WGS84
+
 
 # reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
 prediction_present_area <- st_transform(prediction_present_sf, "EPSG:3005")
 prediction_present_area <- st_set_crs(prediction_present_sf, "EPSG:3005")
-prediction_present_area <- st_area(prediction_present_sf) # 1.48e+12 m^2
+prediction_present_area <- st_area(prediction_present_sf) # 2.68e+11 m^2
 # convert from m^2 to km^2
 prediction_present_area <- st_area(prediction_present_sf)/1000000
 prediction_present_area <- units::set_units(st_area(prediction_present_sf), km^2) 
-# 1 478 904 km^2 of suitable habitat
+# 267 569 km^2 of suitable habitat
+
+# total study area calculations:
+# read in sf object with new bounds:
+# reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
+na_bound_area <- st_transform(na_bound_sf, "EPSG:3005")
+na_bound_area <- st_set_crs(na_bound_sf, "EPSG:3005")
+# calculate study area, in m^2 (default)
+na_bound_area <- st_area(na_bound_sf) # 3.9e+12 m^2
+# convert from m^2 to km^2
+na_bound_area <- st_area(na_bound_sf)/1000000
+na_bound_area <- units::set_units(st_area(na_bound_sf), km^2) # 3 898 033  km^2
 
 # divide predicted present area by total study area to get proportion
 proportion_suitable_present <- prediction_present_area/na_bound_area
-
+# 6.86%
 
 
 #### Projecting to the Future ####
@@ -359,15 +373,15 @@ get_vars_for_dataset("WorldClim_2.1_HadGEM3-GC31-LL_ssp245_5m")
 # but included in vars_uncorr - need to remove altitude then later paste the 
 # values from climate_present into climate_future
 # select uncorrelated variables
-vars_uncorr_fut <- vars_uncorr[ !vars_uncorr == 'altitude']
-vars_uncorr_fut
+predictors_uncorr_fut <- predictors_uncorr[ !predictors_uncorr == 'altitude']
+predictors_uncorr_fut
 
 climate_future <- pastclim::region_slice(
   time_ce = 2090, 
-  bio_variables = vars_uncorr_fut, # uncorrelated variables created previously
+  bio_variables = predictors_uncorr_fut, # uncorrelated variables created previously
   # need to find out how to deal with
   data = "WorldClim_2.1_HadGEM3-GC31-LL_ssp245_5m", 
-  crop = na_bound #boundary polygon for study area
+  crop = na_bound_vect #boundary polygon for study area
 )
 
 # need to add altitude layer from climate_present
@@ -420,24 +434,25 @@ crs(prediction_future_sf) # WGS84
 # reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
 prediction_future_area <- st_transform(prediction_future_sf, "EPSG:3005")
 prediction_future_area <- st_set_crs(prediction_future_sf, "EPSG:3005")
-prediction_future_area <- st_area(prediction_future_sf) # 1.15e+12 m^2
+prediction_future_area <- st_area(prediction_future_sf) # 2.67e+10m^2
 # convert from m^2 to km^2
 prediction_future_area <- st_area(prediction_future_sf)/1000000
 prediction_future_area <- units::set_units(st_area(prediction_future_sf), km^2) 
-# 1 150 023 km^2 of suitable habitat
+# 26 674 km^2 of suitable habitat
 
 # divide predicted present area by total study area to get proportion
 proportion_suitable_future <- prediction_future_area/na_bound_area
+
 
 # now calculate difference between suitable habitat in the present and 2081-2100
 # first need to convert area from class "units" to numeric
 prediction_present_area_num <- as.numeric(prediction_present_area)
 prediction_future_area_num <- as.numeric(prediction_future_area)
 change_area_present_to_2100 <- prediction_future_area_num - prediction_present_area_num
-# -328 881.059 km^2 change in suitable habitat
+# -240 895.0561 km^2 change in suitable habitat
 
 # proportion changed:
-proportion_change <- proportion_suitable_future/proportion_suitable_present
+proportion_change <- prediction_future_area/change_area_present_to_2100
 
 
 
@@ -683,4 +698,6 @@ ran_thin_rep_ens <- predict_raster(ran_thin_rep_ens,
 ggplot() +
   geom_spatraster(data = ran_thin_rep_ens, aes(fill = median)) +
   scale_fill_terrain_c()
+
+ran_thin_rep_ens
 # convert to binary and calculate area?

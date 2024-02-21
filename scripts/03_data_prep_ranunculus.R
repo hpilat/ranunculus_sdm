@@ -32,6 +32,7 @@ na_bound_rast <- writeRaster(na_bound_rast, filename = "data/processed/na_bound_
 # read in na_bound_rast
 na_bound_rast <- rast("data/processed/na_bound_rast.tif")
 
+
 # when testing out the code, we found R would crash with the original extent
 # create new bounds for reduced extent
 # first need to bring in occurrence data
@@ -58,20 +59,18 @@ ylims <- c(ext(ran_occ_sf)$ymin - 2, ext(ran_occ_sf)$ymax + 15)
 # now crop and mask all layers:
 extent.test <- terra::ext(xlims, ylims)
 na_bound_rast <- crop(na_bound_rast, extent.test)
+na_bound_vect <- crop(na_bound_vect, extent.test)
 na_bound_sf <- st_crop(na_bound_sf, extent.test)
 ran_occ_sf <- st_crop(ran_occ_sf, extent.test)
 
 # write na_bound_rast to file for reuse
 writeRaster(na_bound_rast, filename = "data/processed/na_bound_rast.tif", overwrite = TRUE)
 
-# vectorize na_bound_sf so we can use it as a mask
-na_bound_vect <- vect(na_bound_sf)
-na_bound_masked <- mask(na_bound_vect, na_bound_vect)
-# turn back into sf object so we can compute area
-na_bound_sf_masked <- st_as_sf(na_bound_masked)
+# write na_bound_vect to file for use in tidysdm as a mask
+writeVector(na_bound_vect, filename = "data/processed/na_bound_vect.shp")
 
 # now use na_bound_masked as a mask for ran_occ_vect
-ran_occ_vect_masked <- mask(ran_occ_vect, na_bound_masked)
+ran_occ_vect_masked <- mask(ran_occ_vect, na_bound_vect)
 
 # convert to sf object for use in modelling scripts
 ran_occ_sf <- st_as_sf(ran_occ_vect_masked)
@@ -81,15 +80,15 @@ st_write(ran_occ_sf, dsn = "data/processed/ran_occ_sf.shp", append = FALSE)
 
 
 # study area calculations:
-
+# read in sf object with new bounds:
 # reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
-na_bound_area <- st_transform(na_bound_sf_masked, "EPSG:3005")
-na_bound_area <- st_set_crs(na_bound_sf_masked, "EPSG:3005")
+na_bound_area <- st_transform(na_bound_sf, "EPSG:3005")
+na_bound_area <- st_set_crs(na_bound_sf, "EPSG:3005")
 # calculate study area, in m^2 (default)
-na_bound_area <- st_area(na_bound_sf_masked) # 3.9e+12 m^2
+na_bound_area <- st_area(na_bound_sf) # 3.83e+12 m^2
 # convert from m^2 to km^2
-na_bound_area <- st_area(na_bound_sf_masked)/1000000
-na_bound_area <- units::set_units(st_area(na_bound_sf_masked), km^2) # 3 898 033 km^2
+na_bound_area <- st_area(na_bound_sf)/1000000
+na_bound_area <- units::set_units(st_area(na_bound_sf), km^2) # 3 831 703  km^2
 
 
 # Skeetchestn territory:

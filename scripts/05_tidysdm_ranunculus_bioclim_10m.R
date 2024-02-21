@@ -1,5 +1,5 @@
 # Following tidysdm tutorial, we input Ranunculus glaberrimus occurrence records 
-  # and WorldClim predictors into the tidysdm pipeline
+  # and WorldClim predictors at 10 arcmin (?) resolution into the tidysdm pipeline
 # Please first run scripts in the following order: 
   # 01_data_download_ranunculus.R
   # 02_continental_divide.Rmd
@@ -19,8 +19,8 @@ library(overlapping)
 # new geographic extent created in continental_divide.Rmd
 # read in na_bound_rast
 na_bound_rast <- rast("data/processed/na_bound_rast.tif")
-na_bound_sf <- read_sf("data/raw/continental_divide_buffer_boundary.shp")
-na_bound_vect <- vect(na_bound_sf)
+na_bound_sf <- read_sf("data/processed/ran_occ_sf.shp")
+na_bound_vect <- vect("data/processed/na_bound_vect.shp")
 
 # read in Ranunculus glaberrimus occurrences:
 ran_occ_sf <- st_read(dsn = "data/processed/ran_occ_sf.shp")
@@ -43,6 +43,7 @@ download_dataset("WorldClim_2.1_10m")
 # timeframe is 1970 to 2000, listed as 1985, which is the midpoint
 land_mask <- 
   pastclim::get_land_mask(time_ce = 1985, dataset = "WorldClim_2.1_10m")
+# dimensions are only 202 rows and 163 columns - very low resolution it seems
 
 # crop the extent of the land mask to match our study's extent
 land_mask <- crop(land_mask, na_bound_vect)
@@ -102,7 +103,7 @@ ran_pres_abs <- sample_pseudoabs(ran_occ_thin_dist,
                                  n = 10 * nrow(ran_occ_thin_dist), 
                                  raster = land_mask, 
                                  method = c("dist_disc", km2m(5), km2m(50))
-)
+                                 )
 nrow(ran_pres_abs) # 11 440
 
 # plot presences and absences
