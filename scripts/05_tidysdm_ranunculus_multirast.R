@@ -16,26 +16,27 @@ library(ggplot2)
 library(overlapping)
 
 # North American extent (west coast to continental divide)
-# new geographic extent created in continental_divide.Rmd
-# read in na_bound_rast
+# new geographic extent created in 02_continental_divide.Rmd
+# extent cropped to smaller extent in 03_data_prep_ranunculus.R
+# read in extent objects:
+# raster to use as a basemap
 na_bound_rast <- rast("data/processed/na_bound_rast.tif")
+# sf object to use for area calculations
+na_bound_sf <- read_sf("data/processed/na_bound_masked.shp")
+# vector object to use for masking (if needed)
+na_bound_vect <- vect("data/processed/na_bound_vect.shp")
 
-
-# read in na_bound so predictors_multi can be masked
-na_bound <- read_sf("data/processed/na_bound_masked.shp")
-# vectorize na_bound to use as mask
-na_bound <- vect(na_bound)
+# read in Ranunculus glaberrimus occurrences:
+# cropped to proper study extent in 03_data_prep_ranunculus.R
+ran_occ_sf <- st_read(dsn = "data/processed/ran_occ_sf.shp")
 
 # read in multilayer raster with predictor data, created in
 # 03_data_prep_ranunculus
 predictors_multi <- rast("data/processed/predictors_multi.tif")
 
 # mask the multiraster to the extent (all values outside na_bound set to NA)
-predictors_multi <- crop(predictors_multi, extent.test)
-predictors_multi <- mask(predictors_multi, na_bound)
-
-# read in Ranunculus glaberrimus occurrences:
-ran_occ_sf <- st_read(dsn = "data/processed/ran_occ_sf.shp")
+predictors_multi <- crop(predictors_multi, na_bound_vect)
+predictors_multi <- mask(predictors_multi, na_bound_vect)
 
 
 # plot occurrences directly on raster with predictor variables
@@ -59,7 +60,7 @@ nrow(ran_occ_thin_cell) # 2462
 
 ggplot() +
   geom_spatraster(data = na_bound_rast, aes(fill = layer)) +
-  geom_sf(data = ran_occ) # thinned occurrences
+  geom_sf(data = ran_occ_thin_cell) # thinned occurrences
 
 # thin further to remove points closer than 5km
 # default is metres, could input 5000 or use km2m(5)
@@ -72,9 +73,7 @@ nrow(ran_occ_thin_dist) # 1400 at 5km thinning, 1046 at 10km thinning
 
 ggplot() +
   geom_spatraster(data = na_bound_rast, aes(fill = layer)) +
-  geom_sf(data = ran_occ_thin_dist) +
-  scale_x_continuous(limits = xlims) +
-  scale_y_continuous(limits = ylims)
+  geom_sf(data = ran_occ_thin_dist)
 
 
 
@@ -106,12 +105,14 @@ ggplot() +
 ### Variable Selection ###
 
 # Extract variables from predictors_multirast for all presences and pseudoabsences
-summary(predictors_multi) # 60 000 + NAs per column
+summary(predictors_multi) # 50 000 + NAs per column
 nrow(ran_pres_abs) # 11 440
-nrow(predictors_multi) # 4638
+nrow(predictors_multi) # 4042, cropped to new extent hence fewer rows
+
 ran_pres_abs_pred <- ran_pres_abs %>% 
   bind_cols(terra::extract(predictors_multi, ran_pres_abs, ID = FALSE, na.rm = TRUE))
 nrow(ran_pres_abs_pred) # 11 440
+
 # after this step, no NA values in ran_occ_thin from tutorial
   # but I have NA values from predictors_multi
 summary(ran_pres_abs_pred) # still some NAs, bioclim script magically has none at this point
@@ -147,12 +148,15 @@ predictors_uncorr
 # here is where the "class" column gets dropped, which messes up recipe below
   # need to retain class column (not in original tutorial code)
 ran_pres_abs_pred <- ran_pres_abs_pred %>% select(all_of(c(predictors_uncorr, "class")))
+# also add back in soil pH predictor, said to be important
+# arbitrarily chose 5_15, mostly because 5_15 temperature predictor was kept
+
+ran_pres_abs_pred <- ran_pres_abs_pred %>% 
+  bind_cols(terra::extract(predictors_multi$soil_phh2o_5_15, ran_pres_abs_pred, ID = FALSE, na.rm = TRUE))
 
 # now subset the uncorrelated predictors within the multiraster
-predictors_multi_uncorr <- predictors_multi[[predictors_uncorr]]
-# also add back in soil pH predictor, said to be important
-  # arbitrarily chose 5_15, mostly because 5_15 temperature predictor was kept
-predictors_multi_input <- c(predictors_multi_uncorr, predictors_multi$soil_phh2o_5_15)
+# add soil_phh2o_5_15
+predictors_multi_input <- predictors_multi[[c(predictors_uncorr, predictors_multi$soil_phh2o_5_15)]]
 predictors_multi_input
 
 
@@ -287,21 +291,31 @@ prediction_present_pres <- as.polygons(prediction_present_pres)
 
 # now turn prediction_present_pres polygons into sf object
 prediction_present_sf <- st_as_sf(prediction_present_pres)
-
 crs(prediction_present_sf) # WGS84
 
 # reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
 prediction_present_area <- st_transform(prediction_present_sf, "EPSG:3005")
 prediction_present_area <- st_set_crs(prediction_present_sf, "EPSG:3005")
-prediction_present_area <- st_area(prediction_present_sf) # 4.41e+11 m^2
+prediction_present_area <- st_area(prediction_present_sf) # 4.31e+11 m^2
 # convert from m^2 to km^2
 prediction_present_area <- st_area(prediction_present_sf)/1000000
 prediction_present_area <- units::set_units(st_area(prediction_present_sf), km^2) 
-# 440 861 km^2 of suitable habitat
+# 431 186 km^2 of suitable habitat
+
+# total study area calculations:
+# read in sf object with new bounds:
+# reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
+na_bound_area <- st_transform(na_bound_sf, "EPSG:3005")
+na_bound_area <- st_set_crs(na_bound_sf, "EPSG:3005")
+# calculate study area, in m^2 (default)
+na_bound_area <- st_area(na_bound_sf) # 3.9e+12 m^2
+# convert from m^2 to km^2
+na_bound_area <- st_area(na_bound_sf)/1000000
+na_bound_area <- units::set_units(st_area(na_bound_sf), km^2) # 3 898 033  km^2
 
 # divide predicted present area by total study area to get proportion
 proportion_suitable_present <- prediction_present_area/na_bound_area
-# 11.6%
+# 11.1%
 
 
 #### Visualizing the Contribution of Individual Variables ####
@@ -327,159 +341,101 @@ vip_ensemble
 # there must be a way to loop through this?
 # update ran_occ_thin with ran_pres_abs_pred
 
-# investigate the contribution of bio07:
-bio07_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-bio07, profile = vars(bio07)) %>% 
-  prep(training = ran_occ_thin)
+# investigate the contribution of soil_temp_5_15:
+soil_temp_5_15_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-soil_temp_5_15, profile = vars(soil_temp_5_15)) %>% 
+  prep(training = ran_pres_abs_pred)
 
-bio07_data <- bake(bio07_prof, new_data = NULL)
+soil_temp_5_15_data <- bake(soil_temp_5_15_prof, new_data = NULL)
 
-bio07_data <- bio07_data %>% 
+soil_temp_5_15_data <- soil_temp_5_15_data %>% 
   mutate(
-    pred = predict(ran_ensemble, bio07_data)$mean
+    pred = predict(ran_ensemble, soil_temp_5_15_data)$mean
   )
 
-ggplot(bio07_data, aes(x = bio07, y = pred)) +
+ggplot(soil_temp_5_15_data, aes(x = soil_temp_5_15, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
-# investigate the contribution of bio09:
-bio09_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-bio09, profile = vars(bio09)) %>% 
-  prep(training = ran_occ_thin)
+# investigate the contribution of Climate (climate_zones):
+Climate_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-Climate, profile = vars(Climate)) %>% 
+  prep(training = ran_pres_abs_pred)
 
-bio09_data <- bake(bio09_prof, new_data = NULL)
+Climate_data <- bake(Climate_prof, new_data = NULL)
 
-bio09_data <- bio09_data %>% 
+Climate_data <- Climate_data %>% 
   mutate(
-    pred = predict(ran_ensemble, bio09_data)$mean
+    pred = predict(ran_ensemble, Climate_data)$mean
   )
 
-ggplot(bio09_data, aes(x = bio09, y = pred)) +
+ggplot(Climate_data, aes(x = Climate, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
-# investigate the contribution of bio05:
-bio05_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-bio05, profile = vars(bio05)) %>% 
-  prep(training = ran_occ_thin)
+# investigate the contribution of anth_biome:
+anth_biome_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-anth_biome, profile = vars(anth_biome)) %>% 
+  prep(training = ran_pres_abs_pred)
 
-bio05_data <- bake(bio05_prof, new_data = NULL)
+anth_biome_data <- bake(anth_biome_prof, new_data = NULL)
 
-bio05_data <- bio05_data %>% 
+anth_biome_data <- anth_biome_data %>% 
   mutate(
-    pred = predict(ran_ensemble, bio05_data)$mean
+    pred = predict(ran_ensemble, anth_biome_data)$mean
   )
 
-ggplot(bio05_data, aes(x = bio05, y = pred)) +
+ggplot(anth_biome_data, aes(x = anth_biome, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
-# investigate the contribution of bio19:
-bio19_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-bio19, profile = vars(bio19)) %>% 
-  prep(training = ran_occ_thin)
+# investigate the contribution of lndcvr_na:
+lndcvr_na_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-lndcvr_na, profile = vars(lndcvr_na)) %>% 
+  prep(training = ran_pres_abs_pred)
 
-bio19_data <- bake(bio19_prof, new_data = NULL)
+lndcvr_na_data <- bake(lndcvr_na_prof, new_data = NULL)
 
-bio19_data <- bio19_data %>% 
+lndcvr_na_data <- lndcvr_na_data %>% 
   mutate(
-    pred = predict(ran_ensemble, bio19_data)$mean
+    pred = predict(ran_ensemble, lndcvr_na_data)$mean
   )
 
-ggplot(bio19_data, aes(x = bio19, y = pred)) +
+ggplot(lndcvr_na_data, aes(x = lndcvr_na, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
 # investigate the contribution of bio02:
-bio02_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-bio02, profile = vars(bio02)) %>% 
-  prep(training = ran_occ_thin)
+elevation_na_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-elevation_na, profile = vars(elevation_na)) %>% 
+  prep(training = ran_pres_abs_pred)
 
-bio02_data <- bake(bio02_prof, new_data = NULL)
+elevation_na_data <- bake(elevation_na_prof, new_data = NULL)
 
-bio02_data <- bio02_data %>% 
+elevation_na_data <- elevation_na_data %>% 
   mutate(
-    pred = predict(ran_ensemble, bio02_data)$mean
+    pred = predict(ran_ensemble, elevation_na_data)$mean
   )
 
-ggplot(bio02_data, aes(x = bio02, y = pred)) +
+ggplot(elevation_na_data, aes(x = elevation_na, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
-# investigate the contribution of bio18:
-bio18_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-bio05, profile = vars(bio18)) %>% 
-  prep(training = ran_occ_thin)
+# investigate the contribution of soil_phh2o_5_15:
+soil_phh2o_5_15_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-soil_phh2o_5_15, profile = vars(soil_phh2o_5_15)) %>% 
+  prep(training = ran_pres_abs_pred)
 
-bio18_data <- bake(bio18_prof, new_data = NULL)
+soil_phh2o_5_15_data <- bake(soil_phh2o_5_15_prof, new_data = NULL)
 
-bio18_data <- bio18_data %>% 
+soil_phh2o_5_15_data <- soil_phh2o_5_15_data %>% 
   mutate(
-    pred = predict(ran_ensemble, bio18_data)$mean
+    pred = predict(ran_ensemble, soil_phh2o_5_15_data)$mean
   )
 
-ggplot(bio18_data, aes(x = bio18, y = pred)) +
-  geom_point(alpha = .5, cex = 1)
-
-# investigate the contribution of bio14:
-bio14_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-bio14, profile = vars(bio14)) %>% 
-  prep(training = ran_occ_thin)
-
-bio14_data <- bake(bio14_prof, new_data = NULL)
-
-bio14_data <- bio14_data %>% 
-  mutate(
-    pred = predict(ran_ensemble, bio14_data)$mean
-  )
-
-ggplot(bio14_data, aes(x = bio14, y = pred)) +
-  geom_point(alpha = .5, cex = 1)
-
-# investigate the contribution of bio08:
-bio08_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-bio08, profile = vars(bio08)) %>% 
-  prep(training = ran_occ_thin)
-
-bio08_data <- bake(bio08_prof, new_data = NULL)
-
-bio08_data <- bio08_data %>% 
-  mutate(
-    pred = predict(ran_ensemble, bio08_data)$mean
-  )
-
-ggplot(bio08_data, aes(x = bio08, y = pred)) +
-  geom_point(alpha = .5, cex = 1)
-
-# investigate the contribution of bio15:
-bio15_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-bio15, profile = vars(bio15)) %>% 
-  prep(training = ran_occ_thin)
-
-bio15_data <- bake(bio15_prof, new_data = NULL)
-
-bio15_data <- bio15_data %>% 
-  mutate(
-    pred = predict(ran_ensemble, bio15_data)$mean
-  )
-
-ggplot(bio15_data, aes(x = bio15, y = pred)) +
-  geom_point(alpha = .5, cex = 1)
-
-# investigate the contribution of altitude:
-altitude_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-altitude, profile = vars(altitude)) %>% 
-  prep(training = ran_occ_thin)
-
-altitude_data <- bake(altitude_prof, new_data = NULL)
-
-altitude_data <- altitude_data %>% 
-  mutate(
-    pred = predict(ran_ensemble, altitude_data)$mean
-  )
-
-ggplot(altitude_data, aes(x = altitude, y = pred)) +
+ggplot(soil_phh2o_5_15_data, aes(x = soil_phh2o_5_15, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
 
 
 ## Repeated Ensembles ##
+
+
 
 # explore the effect of thinning and sampling pseudoabsences on model performance
 # create a list of simple_ensembles by looping through the SDM pipeline
@@ -546,4 +502,6 @@ ran_thin_rep_ens <- predict_raster(ran_thin_rep_ens,
 ggplot() +
   geom_spatraster(data = ran_thin_rep_ens, aes(fill = median)) +
   scale_fill_terrain_c()
+
+ran_thin_rep_ens
 # convert to binary and calculate area?
