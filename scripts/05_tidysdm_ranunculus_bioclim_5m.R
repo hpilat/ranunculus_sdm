@@ -106,7 +106,7 @@ set.seed(1234567)
 ran_pres_abs <- sample_pseudoabs(ran_occ_thin_dist, 
                                  n = 10 * nrow(ran_occ_thin_dist), 
                                  raster = land_mask, 
-                                 method = c("dist_disc", km2m(5), km2m(50))
+                                 method = c("dist_disc", km2m(20), km2m(50))
 )
 nrow(ran_pres_abs) # 11 440
 
@@ -255,7 +255,8 @@ ran_ensemble <- simple_ensemble() %>%
 # can also use boyce_cont and tss_max as metrics
 ran_ensemble
 autoplot(ran_ensemble)
-collect_metrics(ran_ensemble) # need to update tidysdm version for this to work
+collect_metrics(ran_ensemble) 
+# need to have tidysdm version > 0.9.3 for this to work
 ran_ensemble_metrics <- collect_metrics(ran_ensemble)
 
 
@@ -273,13 +274,13 @@ ggplot() +
   geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 
 
-## skipped below step because all models are below AUC 0.8
+## changed threshold to 0.7 as all models performed below 0.8
 
 # subset the model to only use the best models, based on AUC
 # set threshold of 0.8 for AUC
 # take the median of the available model predictions (mean is the default)
 prediction_present_best <- predict_raster(ran_ensemble, climate_present_uncorr, 
-                                          metric_thresh = c("roc_auc", 0.8), 
+                                          metric_thresh = c("roc_auc", 0.7), 
                                           fun= "median")
 
 ggplot() +

@@ -91,9 +91,12 @@ set.seed(1234567)
 ran_pres_abs <- sample_pseudoabs(ran_occ_thin_dist, 
                                n = 10 * nrow(ran_occ_thin_dist), 
                                raster = na_bound_rast, 
-                               method = c("dist_disc", km2m(5), km2m(50))
+                               method = c("dist_disc", km2m(20), km2m(50))
                                )
-nrow(ran_pres_abs) # 11 440
+nrow(ran_pres_abs) # 11 440 
+
+# 5-50 discs = around 0.7 AUC for most models
+# 15-50 discs = around 0.75 for most models and ensemble
 
 # plot presences and absences
 ggplot() +
@@ -119,7 +122,8 @@ summary(ran_pres_abs_pred) # still some NAs, bioclim script magically has none a
 
 # remove rows with NA values
 ran_pres_abs_pred <- na.omit(ran_pres_abs_pred)
-nrow(ran_pres_abs_pred) # 11 310, 130 rows removed
+nrow(ran_pres_abs_pred) # 11 310, 130 rows removed with 5-50 buffer distance
+  # 11297 with 15 - 50 buffer distance
 
 # skipped non-overlapping distribution step in tutorial
 
@@ -151,12 +155,13 @@ ran_pres_abs_pred <- ran_pres_abs_pred %>% select(all_of(c(predictors_uncorr, "c
 # also add back in soil pH predictor, said to be important
 # arbitrarily chose 5_15, mostly because 5_15 temperature predictor was kept
 
-ran_pres_abs_pred <- ran_pres_abs_pred %>% 
-  bind_cols(terra::extract(predictors_multi$soil_phh2o_5_15, ran_pres_abs_pred, ID = FALSE, na.rm = TRUE))
+# ran_pres_abs_pred <- ran_pres_abs_pred %>% 
+  # bind_cols(terra::extract(predictors_multi$soil_phh2o_5_15, ran_pres_abs_pred, ID = FALSE, na.rm = TRUE))
 
 # now subset the uncorrelated predictors within the multiraster
 # add soil_phh2o_5_15
-predictors_multi_input <- predictors_multi[[c(predictors_uncorr, predictors_multi$soil_phh2o_5_15)]]
+# predictors_multi_input <- predictors_multi[[c(predictors_uncorr, predictors_multi$soil_phh2o_5_15)]]
+predictors_multi_input <- predictors_multi[[predictors_uncorr]]
 predictors_multi_input
 
 
@@ -231,7 +236,7 @@ autoplot(ran_ensemble)
 
 # a tabular form of the model metrics:
 ran_ensemble_metrics <-  collect_metrics(ran_ensemble) 
-# need new tidysdm version for this to work
+# need tidysdm version > 0.9.3 for this to work
 
 
 
