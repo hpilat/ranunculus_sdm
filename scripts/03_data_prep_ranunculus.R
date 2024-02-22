@@ -5,7 +5,9 @@
   # 02_continental_divide.Rmd
   # 03_extents.R
 
-
+library(tidyverse)
+library(sf)
+library(terra)
 
 ### Spatial Extents ##
 # required in order for projection code to run for tidysdm_ranunculus_multirast.R
