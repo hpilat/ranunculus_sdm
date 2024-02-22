@@ -147,16 +147,14 @@ predictors_sample <- terra::spatSample(predictors_multi, size = 5000,
 predictors_uncorr <- filter_high_cor(predictors_sample, cutoff = 0.8, 
                                      verbose = TRUE, names = TRUE, to_keep = NULL)
 predictors_uncorr
+# add back in soil_phh2o_5_15 predictor
+predictors_uncorr <- c(predictors_uncorr, "soil_phh2o_5_15")
+predictors_uncorr
 
 # remove highly correlated predictors
 # here is where the "class" column gets dropped, which messes up recipe below
   # need to retain class column (not in original tutorial code)
 ran_pres_abs_pred <- ran_pres_abs_pred %>% select(all_of(c(predictors_uncorr, "class")))
-# also add back in soil pH predictor, said to be important
-# arbitrarily chose 5_15, mostly because 5_15 temperature predictor was kept
-
-# ran_pres_abs_pred <- ran_pres_abs_pred %>% 
-  # bind_cols(terra::extract(predictors_multi$soil_phh2o_5_15, ran_pres_abs_pred, ID = FALSE, na.rm = TRUE))
 
 # now subset the uncorrelated predictors within the multiraster
 # add soil_phh2o_5_15
@@ -271,13 +269,12 @@ ggplot() +
 # desirable to have binary predictions (presence/absence) rather than probability of occurrence
   # calibrate threshold used to convert probabilities into classes
 ran_ensemble <- calib_class_thresh(ran_ensemble,
-                                   class_thresh = "tss_max"
-                                   )
+                                   class_thresh = "tss_max")
 
 prediction_present_binary <- predict_raster(ran_ensemble, 
                                             predictors_multi_input, 
                                             type = "class", 
-                                            class_thresh = c("tss_max")
+                                            class_thresh = c("tss_max") 
                                             )
 
 ggplot() +
@@ -301,7 +298,7 @@ crs(prediction_present_sf) # WGS84
 # reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
 prediction_present_area <- st_transform(prediction_present_sf, "EPSG:3005")
 prediction_present_area <- st_set_crs(prediction_present_sf, "EPSG:3005")
-prediction_present_area <- st_area(prediction_present_sf) # 4.31e+11 m^2
+prediction_present_area <- st_area(prediction_present_sf) # 6.53e+11 m^2
 # convert from m^2 to km^2
 prediction_present_area <- st_area(prediction_present_sf)/1000000
 prediction_present_area <- units::set_units(st_area(prediction_present_sf), km^2) 
