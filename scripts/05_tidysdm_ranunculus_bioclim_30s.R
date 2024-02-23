@@ -25,37 +25,14 @@ na_bound_vect <- vect("data/processed/na_bound_vect.shp")
 # read in Ranunculus glaberrimus occurrences:
 ran_occ_sf <- st_read(dsn = "data/processed/ran_occ_sf.shp")
 
-# check which datasets are available through pastclim:
-pastclim::get_available_datasets()
-# can use "WorldClim_2.1_10m" or "WorldClim_2.1_5m"
-
-# plot species occurrences directly on the raster used to extract climatic variables
-# get land mask for available datasets, use that as background for occurrences
-# download date: February 18th, 2024
-worldclim <- pastclim::download_dataset(dataset = "WorldClim_2.1_10m", 
-                                        bio_variables = NULL, 
-                                        annual = FALSE, monthly = TRUE)
-
-download_dataset("WorldClim_2.1_10m")
-# TRUE under values in environment = successful download
-
-# create land mask from pastclim
-# timeframe is 1970 to 2000, listed as 1985, which is the midpoint
-land_mask <- 
-  pastclim::get_land_mask(time_ce = 1985, dataset = "WorldClim_2.1_10m")
-# dimensions are only 202 rows and 163 columns - very low resolution it seems
-
-# crop the extent of the land mask to match our study's extent
-land_mask <- crop(land_mask, na_bound_vect)
-# mask to the polygon
-land_mask <- mask(land_mask, na_bound_vect)
-
 # plot occurrences directly on raster with predictor variables
+# read in processed WorldClim raster
+climate_present <- rast("data/processed/worldclim_masked.tif")
 
 # use tidyterra package for plotting so ggplot can be used with terra rasters
 # aes(fill = layer) refers to column name in na_bound_rast
 ggplot()+
-  geom_spatraster(data = land_mask, aes(fill = land_mask_1985)) +
+  geom_spatraster(data = na_bound_rast, aes(fill = layer)) +
   geom_sf(data = ran_occ_sf) # sf object with coordinates
 
 
@@ -70,7 +47,7 @@ ran_occ_thin_cell <- thin_by_cell(ran_occ_sf, raster = na_bound_rast)
 nrow(ran_occ_thin_cell) # 2462
 
 ggplot() +
-  geom_spatraster(data = land_mask, aes(fill = land_mask_1985)) +
+  geom_spatraster(data = na_bound_rast, aes(fill = layer)) +
   geom_sf(data = ran_occ_thin_cell) # thinned occurrences
 
 # thin further to remove points closer than 5km
@@ -78,13 +55,15 @@ ggplot() +
 # attempted 5km, filter_high_cor below wouldn't run, so try 10
 # 10 still didn't work, try 15?
 set.seed(1234567)
-ran_occ_thin_dist <- thin_by_dist(ran_occ_sf, dist_min = km2m(10))
+ran_occ_thin_dist <- thin_by_dist(ran_occ_sf, dist_min = km2m(20))
 nrow(ran_occ_thin_dist) # 1400 at 5km thinning, 1046 at 10km thinning
 # 1040 at 10km thinning with reduced spatial extent
+  # but failed to project with high res bioclim data
+# 653 at 20km spatial thinning
 
 ggplot() +
-  geom_spatraster(data = land_mask, aes(fill = land_mask_1985)) +
-  geom_sf(data = ran_occ_thin_dist) +
+  geom_spatraster(data = na_bound_rast, aes(fill = layer)) +
+  geom_sf(data = ran_occ_thin_dist)
 
 
 
@@ -101,42 +80,26 @@ ggplot() +
 set.seed(1234567)
 ran_pres_abs <- sample_pseudoabs(ran_occ_thin_dist, 
                                  n = 10 * nrow(ran_occ_thin_dist), 
-                                 raster = land_mask, 
-                                 method = c("dist_disc", km2m(5), km2m(50))
+                                 raster = na_bound_rast, 
+                                 method = c("dist_disc", km2m(20), km2m(50))
                                  )
-nrow(ran_pres_abs) # 11 440
+nrow(ran_pres_abs) 
+# 11 440 with 10km thinning
+# 7183 with 20km thinning
 
 # plot presences and absences
 ggplot() +
-  geom_spatraster(data = land_mask, aes(fill = land_mask_1985)) +
+  geom_spatraster(data = na_bound_rast, aes(fill = layer)) +
   geom_sf(data = ran_pres_abs, aes(col = class))
 
 
 
 ### Variable Selection ###
 
-# see which variables are available from WorldClim dataset
-# 10 and 5m resolution available through pastclim
-climate_vars <- pastclim::get_vars_for_dataset("WorldClim_2.1_10m")
-climate_vars
-
-# download dataset at the correct resolution (10 arcmin here, can do 5)
-download_dataset("WorldClim_2.1_10m")
-# dataset covers years 1970-2000, pastclim dates it at midpoint of 1985
-# TRUE in console = successful download
-
-# create a Spatraster for the WorldClim dataset
-climate_present <- pastclim::region_slice(
-  time_ce = 1985, 
-  bio_variables = climate_vars, 
-  data = "WorldClim_2.1_10m", 
-  crop = na_bound # SpatVector with area boundary
-)
-
 # Extract variables from predictors_multirast for all presences and pseudoabsences
-summary(climate_present) # 90 000 + NAs per column
+summary(climate_present) # 50 000 + NAs per column
 nrow(ran_pres_abs) # 11 440
-nrow(predictors_multi) # 4109
+nrow(climate_present) # 4042
 ran_pres_abs_pred <- ran_pres_abs %>% 
   bind_cols(terra::extract(climate_present, ran_pres_abs, ID = FALSE, na.rm = TRUE))
 nrow(ran_pres_abs_pred) # 11 440
@@ -146,26 +109,26 @@ summary(ran_pres_abs_pred) # still some NAs, bioclim script magically has none a
 
 # remove rows with NA values
 ran_pres_abs_pred <- na.omit(ran_pres_abs_pred)
-nrow(ran_pres_abs_pred) # 11 307, 133 rows removed
+nrow(ran_pres_abs_pred) # 11 415, 25 rows removed
 
 # skipped non-overlapping distribution step in tutorial
 
 # inspect the variables for collinearity
 pairs(climate_present)
 
-# may need a smaller sample to calculate collinearity between variables
+# need a smaller sample to calculate collinearity between variables
 
 # try sample size of 5000 cells
-# predictors_sample <- terra::spatSample(climate_present, size = 5000, 
-                                       #method = "random", replace = FALSE, 
-                                       # na.rm = FALSE, as.raster = TRUE,
-                                       # values = TRUE, cells = FALSE, xy = TRUE)
+predictors_sample <- terra::spatSample(climate_present, size = 5000, 
+                                       method = "random", replace = FALSE, 
+                                       na.rm = FALSE, as.raster = TRUE,
+                                       values = TRUE, cells = FALSE, xy = TRUE)
 
 
 # subset to variables below 0.8 Pearson's correlation coefficient
 # climate_present = SpatRaster with predictor data (all numeric, no NAs)
 
-predictors_uncorr <- filter_high_cor(climate_present, cutoff = 0.8, 
+predictors_uncorr <- filter_high_cor(predictors_sample, cutoff = 0.8, 
                                      verbose = TRUE, names = TRUE, to_keep = NULL)
 predictors_uncorr
 
@@ -249,7 +212,7 @@ ran_ensemble <- simple_ensemble() %>%
 # can also use roc_auc and tss_max as metrics
 ran_ensemble
 autoplot(ran_ensemble)
-collect_metrics(ran_ensemble) # need to update tidysdm version for this to work
+# need to have tidysdm version 0.9.3 or greater for this to work
 ran_ensemble_metrics <- collect_metrics(ran_ensemble)
 
 ## Projecting to the Present ##
@@ -266,7 +229,7 @@ ggplot() +
 # set threshold of 0.8 for AUC
 # take the median of the available model predictions (mean is the default)
 prediction_present_best <- predict_raster(ran_ensemble, climate_present_uncorr, 
-                                           metric_thresh = c("roc_auc", 0.8), 
+                                           metric_thresh = c("roc_auc", 0.7), 
                                            fun= "median")
 
 ggplot() +
@@ -329,11 +292,11 @@ proportion_suitable_present <- prediction_present_area/na_bound_area
 help("WorldClim_2.1")
 # ssp = Shared Socioeconomic Pathways, 126, 245, 370, 585 available
 
-# SSP 245, 2081-2100
-download_dataset("WorldClim_2.1_HadGEM3-GC31-LL_ssp245_10m")
+# SSP 245, 2081-2100 (worst-case, furthest in the future)
+download_dataset("WorldClim_2.1_HadGEM3-GC31-LL_ssp126_0.5m")
 
 # see which times are available:
-get_time_ce_steps("WorldClim_2.1_HadGEM3-GC31-LL_ssp245_10m")
+get_time_ce_steps("WorldClim_2.1_HadGEM3-GC31-LL_ssp245_0.5m")
 # predict using 2090 (midpoint between 2081 and 2100)
 
 # check the available variables:
