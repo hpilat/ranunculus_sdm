@@ -143,12 +143,10 @@ nrow(ran_pres_abs) # 11 440
 nrow(climate_present) # 404
 
 ran_pres_abs_pred <- ran_pres_abs %>% 
-  bind_cols(terra::extract(climate_present, ran_pres_abs, ID = FALSE, na.rm = TRUE))
+  bind_cols(terra::extract(climate_present, ran_pres_abs, ID = FALSE))
+  # had to use na.rm argument above in multirast script
 
 nrow(ran_pres_abs_pred) # 11 440
-
-# after this step, no NA values in ran_pres_abs_pred equivalent from tutorial
-# but I have NA values from predictors_multi
 summary(ran_pres_abs_pred) # no more NAs 
 
 # skipped non-overlapping distribution step in tutorial
@@ -325,11 +323,11 @@ crs(prediction_present_sf) # WGS84
 # reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
 prediction_present_area <- st_transform(prediction_present_sf, "EPSG:3005")
 prediction_present_area <- st_set_crs(prediction_present_sf, "EPSG:3005")
-prediction_present_area <- st_area(prediction_present_sf) # 2.68e+11 m^2
+prediction_present_area <- st_area(prediction_present_sf) # 4.77e+11 m^2
 # convert from m^2 to km^2
 prediction_present_area <- st_area(prediction_present_sf)/1000000
 prediction_present_area <- units::set_units(st_area(prediction_present_sf), km^2) 
-# 267 569 km^2 of suitable habitat
+# 476 938 km^2 of suitable habitat
 
 # total study area calculations:
 # read in sf object with new bounds:
@@ -344,7 +342,7 @@ na_bound_area <- units::set_units(st_area(na_bound_sf), km^2) # 3 898 033  km^2
 
 # divide predicted present area by total study area to get proportion
 proportion_suitable_present <- prediction_present_area/na_bound_area
-# 6.86%
+# 12.2%
 
 
 #### Projecting to the Future ####
@@ -355,15 +353,15 @@ proportion_suitable_present <- prediction_present_area/na_bound_area
 help("WorldClim_2.1")
 # ssp = Shared Socioeconomic Pathways, 126, 245, 370, 585 available
 
-# SSP 245, 2081-2100
-download_dataset("WorldClim_2.1_HadGEM3-GC31-LL_ssp245_5m")
+# SSP 126, 2081-2100 is worst case scenario
+download_dataset("WorldClim_2.1_HadGEM3-GC31-LL_ssp126_5m")
 
 # see which times are available:
-get_time_ce_steps("WorldClim_2.1_HadGEM3-GC31-LL_ssp245_5m")
+get_time_ce_steps("WorldClim_2.1_HadGEM3-GC31-LL_ssp126_5m")
 # predict using 2090 (midpoint between 2081 and 2100)
 
 # check the available variables:
-get_vars_for_dataset("WorldClim_2.1_HadGEM3-GC31-LL_ssp245_5m")
+get_vars_for_dataset("WorldClim_2.1_HadGEM3-GC31-LL_ssp126_5m")
 # all 19 bioclimatic variables, no altitude (because it doesn't change over time)
 # to use altitude, would have to copy it over from the present
 # but altitude not included in set of uncorrelated variables from earlier, 
@@ -381,7 +379,7 @@ climate_future <- pastclim::region_slice(
   time_ce = 2090, 
   bio_variables = predictors_uncorr_fut, # uncorrelated variables created previously
   # need to find out how to deal with
-  data = "WorldClim_2.1_HadGEM3-GC31-LL_ssp245_5m", 
+  data = "WorldClim_2.1_HadGEM3-GC31-LL_ssp126_5m", 
   crop = na_bound_vect #boundary polygon for study area
 )
 
@@ -403,8 +401,7 @@ ggplot() +
 # can convert to binary predictions (present vs absence)
 
 ran_ensemble_binary <- calib_class_thresh(ran_ensemble, 
-                                          class_thresh = "tss_max"
-)
+                                          class_thresh = "tss_max")
 
 prediction_future_binary <- predict_raster(ran_ensemble_binary, 
                                            climate_future, 
@@ -435,7 +432,7 @@ crs(prediction_future_sf) # WGS84
 # reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
 prediction_future_area <- st_transform(prediction_future_sf, "EPSG:3005")
 prediction_future_area <- st_set_crs(prediction_future_sf, "EPSG:3005")
-prediction_future_area <- st_area(prediction_future_sf) # 2.67e+10m^2
+prediction_future_area <- st_area(prediction_future_sf) # 1.8e+11m^2
 # convert from m^2 to km^2
 prediction_future_area <- st_area(prediction_future_sf)/1000000
 prediction_future_area <- units::set_units(st_area(prediction_future_sf), km^2) 
