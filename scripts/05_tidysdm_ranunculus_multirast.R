@@ -70,6 +70,7 @@ set.seed(1234567)
 ran_occ_thin_dist <- thin_by_dist(ran_occ_sf, dist_min = km2m(10))
 nrow(ran_occ_thin_dist) # 1400 at 5km thinning, 1046 at 10km thinning
   # 1040 at 10km thinning with reduced spatial extent
+  # 635 at 20km thinning
 
 ggplot() +
   geom_spatraster(data = na_bound_rast, aes(fill = layer)) +
@@ -122,8 +123,9 @@ summary(ran_pres_abs_pred) # still some NAs, bioclim script magically has none a
 
 # remove rows with NA values
 ran_pres_abs_pred <- na.omit(ran_pres_abs_pred)
-nrow(ran_pres_abs_pred) # 11 310, 130 rows removed with 5-50 buffer distance
-  # 11297 with 15 - 50 buffer distance
+nrow(ran_pres_abs_pred) # 11 310, 130 rows removed with 10 km thinning and 5-50km buffer distance
+  # 11297 with 10 km thinning and 15 - 50 buffer distance
+  # 7046 with 20km thinning and 20-70km buffer distance
 
 # skipped non-overlapping distribution step in tutorial
 
