@@ -42,6 +42,92 @@ ran_occ_download <- occ_download_get(key = '0067361-231120084113126',
 
 ## Predictor Data ##
 
+# Present Climate Data: highest resolution from geodata is 0.5 minutes of a degree 
+# tidysdm tutorial uses pastclim to access WorldClim data, but only low resolution
+  # datasets are available
+# attempt to download higher resolution WorldClim data for Canada and USA:
+# using worldclim_country worked for Canada, but no values for USA
+# seems to be a common and unresolved issue for other geodata users
+# can also use 30 degree tiles, but would have to use several to cover our extent
+worldclim_tile1 <- geodata::worldclim_tile(var = "bio", # all 19 bioclimatic variables
+                                           res = 0.5, # minutes of a degree
+                                           path = "data/raw/",
+                                           lon = -150,
+                                           lat = 50,
+                                           version = 2.1)
+# tile1 covers -120 to -150 lon and 30 to 60 lat
+
+worldclim_tile2 <- geodata::worldclim_tile(var = "bio", # all 19 bioclimatic variables
+                                           res = 0.5, # minutes of a degree
+                                           path = "data/raw/",
+                                           lon = -102.5,
+                                           lat = 50,
+                                           version = 2.1)
+# tile2 covers -120 to -90 lon, and 30 to 60 lat
+
+# now we need two more tiles to cover the top 10 degrees lat we're missing
+
+worldclim_tile3 <- geodata::worldclim_tile(var = "bio", # all 19 bioclimatic variables
+                                           res = 0.5, # minutes of a degree
+                                           path = "data/raw/",
+                                           lon = -150,
+                                           lat = 80,
+                                           version = 2.1)
+
+worldclim_tile4 <- geodata::worldclim_tile(var = "bio", # all 19 bioclimatic variables
+                                           res = 0.5, # minutes of a degree
+                                           path = "data/raw/",
+                                           lon = -102.5,
+                                           lat = 80,
+                                           version = 2.1)
+
+
+# merge the worldclim tiles together
+worldclim_1_2 <- terra::merge(worldclim_tile1, worldclim_tile2, first = TRUE)
+worldclim_3_4 <- terra::merge(worldclim_tile3, worldclim_tile4, first = TRUE)
+worldclim_tiles <- terra::merge(worldclim_1_2, worldclim_3_4, first = TRUE)
+
+# write to file for reuse in 03_data_prep_ranunculus
+writeRaster(worldclim_tiles, filename = "data/processed/worldclim_tiles_combined.tif")
+
+
+# Future Climate Data: highest resolution from geodata is 2.5 minutes of a degree
+
+cmip_tile1 <- geodata::cmip6_tile(model = "HadGEM3-GC31-LL", 
+                                  ssp = "126", 
+                                  time = "2061-2080", 
+                                  var = "bioc", 
+                                  res = 2.5, 
+                                  path = "data/raw/", 
+                                  lon = -150, 
+                                  lat = 50)
+
+# tile1 covers -120 to -150 lon and 30 to 60 lat
+
+worldclim_tile2 <- geodata::worldclim_tile(var = "bio", # all 19 bioclimatic variables
+                                           res = 0.5, # minutes of a degree
+                                           path = "data/raw/",
+                                           lon = -102.5,
+                                           lat = 50,
+                                           version = 2.1)
+# tile2 covers -120 to -90 lon, and 30 to 60 lat
+
+# now we need two more tiles to cover the top 10 degrees lat we're missing
+
+worldclim_tile3 <- geodata::worldclim_tile(var = "bio", # all 19 bioclimatic variables
+                                           res = 0.5, # minutes of a degree
+                                           path = "data/raw/",
+                                           lon = -150,
+                                           lat = 80,
+                                           version = 2.1)
+
+worldclim_tile4 <- geodata::worldclim_tile(var = "bio", # all 19 bioclimatic variables
+                                           res = 0.5, # minutes of a degree
+                                           path = "data/raw/",
+                                           lon = -102.5,
+                                           lat = 80,
+                                           version = 2.1)
+
 
 # read in anthropogenic biome data
 anth_biome <- rast("data/raw/anthromes_EqArea.tif")

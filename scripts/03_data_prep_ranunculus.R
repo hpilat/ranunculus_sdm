@@ -116,6 +116,19 @@ skeetch_vect <- project(skeetch_vect, "EPSG:4326")
 ## Predictor Data ##
 
 
+## WorldClim data, for use in Bioclim model:
+
+# read in WorldClim tiles raster:
+worldclim_tiles <- rast("data/processed/worldclim_tiles_combined.tif")
+worldclim_tiles # CRS and resolution match what we need
+# crop the extent of the land mask to match our study's extent
+worldclim_cropped <- crop(worldclim_tiles, na_bound_vect)
+# mask to the polygon
+worldclim_masked <- mask(worldclim_cropped, na_bound_vect)
+
+# write to file for reuse in 05_tidysdm_bioclim_30s.R
+writeRaster(worldclim_masked, filename = "data/processed/worldclim_masked.tif")
+
 ## Numeric Rasters:
 
 # crop soil temperature SpatRaster to North American extent
