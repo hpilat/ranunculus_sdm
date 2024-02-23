@@ -55,7 +55,7 @@ ggplot() +
 # attempted 5km, filter_high_cor below wouldn't run, so try 10
 # 10 still didn't work, try 15?
 set.seed(1234567)
-ran_occ_thin_dist <- thin_by_dist(ran_occ_sf, dist_min = km2m(20))
+ran_occ_thin_dist <- thin_by_dist(ran_occ_sf, dist_min = km2m(10))
 nrow(ran_occ_thin_dist) # 1400 at 5km thinning, 1046 at 10km thinning
 # 1040 at 10km thinning with reduced spatial extent
   # but failed to project with high res bioclim data
