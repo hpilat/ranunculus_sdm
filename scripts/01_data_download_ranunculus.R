@@ -104,29 +104,6 @@ cmip_tile1 <- geodata::cmip6_tile(model = "HadGEM3-GC31-LL",
 
 # tile1 covers -120 to -150 lon and 30 to 60 lat
 
-worldclim_tile2 <- geodata::worldclim_tile(var = "bio", # all 19 bioclimatic variables
-                                           res = 0.5, # minutes of a degree
-                                           path = "data/raw/",
-                                           lon = -102.5,
-                                           lat = 50,
-                                           version = 2.1)
-# tile2 covers -120 to -90 lon, and 30 to 60 lat
-
-# now we need two more tiles to cover the top 10 degrees lat we're missing
-
-worldclim_tile3 <- geodata::worldclim_tile(var = "bio", # all 19 bioclimatic variables
-                                           res = 0.5, # minutes of a degree
-                                           path = "data/raw/",
-                                           lon = -150,
-                                           lat = 80,
-                                           version = 2.1)
-
-worldclim_tile4 <- geodata::worldclim_tile(var = "bio", # all 19 bioclimatic variables
-                                           res = 0.5, # minutes of a degree
-                                           path = "data/raw/",
-                                           lon = -102.5,
-                                           lat = 80,
-                                           version = 2.1)
 
 
 # read in anthropogenic biome data
@@ -186,16 +163,6 @@ watersheds_vect <- vect(watersheds_sf)
 #  path = "data/raw/", 
 #  version = "2.1")
 
-# monthly snowpack, NetCDF file requires special software to download?
-# snowpack_canada <- rast("data/")
-
-# unified North American soil data
-# download.file("https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1242", 
-# paste("C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data\\",
-# "unified_north_american_soil.tif", sep = ""), mode = "wb")
-
-# error with file type?
-# unified_soil <- rast("data/unified_north_american_soil.tif")
 
 # future climate predictions Shared Socioeconomic Pathway 126 (no climate policy?)
 # cmip6_2021_2040_126 <- geodata::cmip6_tile(lon, lat, model, ssp = "126", time = "2021-2040", 
