@@ -20,7 +20,7 @@ library(overlapping)
 # extent cropped to smaller extent in 03_data_prep_ranunculus.R
 # read in extent objects:
 # raster to use as a basemap
-na_bound_rast <- rast("data/processed/na_bound_rast.tif")
+na_bound_rast <- rast("data/processed/na_bound_rast_new.tif")
 # sf object to use for area calculations
 na_bound_sf <- read_sf("data/processed/na_bound_masked.shp")
 # vector object to use for masking (if needed)
@@ -92,7 +92,7 @@ set.seed(1234567)
 ran_pres_abs <- sample_pseudoabs(ran_occ_thin_dist, 
                                n = 10 * nrow(ran_occ_thin_dist), 
                                raster = na_bound_rast, 
-                               method = c("dist_disc", km2m(20), km2m(50))
+                               method = c("dist_disc", km2m(20), km2m(70))
                                )
 nrow(ran_pres_abs) # 11 440 
 
@@ -124,8 +124,9 @@ summary(ran_pres_abs_pred) # still some NAs, bioclim script magically has none a
 # remove rows with NA values
 ran_pres_abs_pred <- na.omit(ran_pres_abs_pred)
 nrow(ran_pres_abs_pred) # 11 310, 130 rows removed with 10 km thinning and 5-50km buffer distance
-  # 11297 with 10 km thinning and 15 - 50 buffer distance
-  # 7046 with 20km thinning and 20-70km buffer distance
+  # 11297 with 10 km thinning and 15-50 km buffer distance
+  # 11236 with 10 km thinning and 20-70 km buffer distance
+  # 7046 with 20 km thinning and 20-70 km buffer distance
 
 # skipped non-overlapping distribution step in tutorial
 
@@ -149,9 +150,17 @@ predictors_sample <- terra::spatSample(predictors_multi, size = 5000,
 predictors_uncorr <- filter_high_cor(predictors_sample, cutoff = 0.8, 
                                      verbose = TRUE, names = TRUE, to_keep = NULL)
 predictors_uncorr
-# add back in soil_phh2o_5_15 predictor
-predictors_uncorr <- c(predictors_uncorr, "soil_phh2o_5_15")
-predictors_uncorr
+
+# recommended removing both soil_phh2o predictors, as they're highly correlated 
+  # with soil temp,but we want to include at least 1 because the literature 
+  # review says soil pH is thought to be important for determining geophyte distribution
+# add back in soil_phh2o_5_15 predictor, remove climate_zones 
+  # (highly correlated, climate zones less important)
+# predictors_uncorr <- c(predictors_uncorr, "soil_phh2o_5_15")
+# predictors_uncorr
+# now remove climate_zones
+# predictors_uncorr <- predictors_uncorr[ !predictors_uncorr == "climate_zones"]
+                                      
 
 # remove highly correlated predictors
 # here is where the "class" column gets dropped, which messes up recipe below
@@ -159,8 +168,6 @@ predictors_uncorr
 ran_pres_abs_pred <- ran_pres_abs_pred %>% select(all_of(c(predictors_uncorr, "class")))
 
 # now subset the uncorrelated predictors within the multiraster
-# add soil_phh2o_5_15
-# predictors_multi_input <- predictors_multi[[c(predictors_uncorr, predictors_multi$soil_phh2o_5_15)]]
 predictors_multi_input <- predictors_multi[[predictors_uncorr]]
 predictors_multi_input
 
@@ -271,7 +278,7 @@ ggplot() +
 # desirable to have binary predictions (presence/absence) rather than probability of occurrence
   # calibrate threshold used to convert probabilities into classes
 ran_ensemble <- calib_class_thresh(ran_ensemble,
-                                   class_thresh = "tss_max")
+                                   class_thresh = 0.5)
 
 prediction_present_binary <- predict_raster(ran_ensemble, 
                                             predictors_multi_input, 
