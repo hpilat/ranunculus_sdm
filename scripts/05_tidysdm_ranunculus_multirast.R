@@ -25,6 +25,9 @@ na_bound_rast <- rast("data/processed/na_bound_rast_new.tif")
 na_bound_sf <- read_sf("data/processed/na_bound_masked.shp")
 # vector object to use for masking (if needed)
 na_bound_vect <- vect("data/processed/na_bound_vect.shp")
+skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
+# reproject to WGS84
+skeetch_vect <- project(skeetch_vect, "EPSG:4326")
 
 # read in Ranunculus glaberrimus occurrences:
 # cropped to proper study extent in 03_data_prep_ranunculus.R
