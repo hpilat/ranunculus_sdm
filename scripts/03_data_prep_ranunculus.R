@@ -3,7 +3,6 @@
 # Please first run these scripts in the following order:
   # 01_data_download_ranunculus.R
   # 02_continental_divide.Rmd
-  # 03_extents.R
 
 library(tidyverse)
 library(sf)
@@ -72,29 +71,31 @@ writeRaster(na_bound_rast, filename = "data/processed/na_bound_rast_new.tif", ov
 writeVector(na_bound_vect, filename = "data/processed/na_bound_vect.shp", overwrite = TRUE)
 plot(na_bound_vect)
 
-# read in na_bound_vect
-na_bound_vect <- vect("data/processed/na_bound_vect.shp")
+# write sf object to file for calculating area in tidysdm
+st_write(na_bound_sf, dsn = "data/processed/na_bound_sf_masked.shp", append = FALSE)
 
-# now use na_bound_masked as a mask for ran_occ_vect
-ran_occ_vect_masked <- mask(ran_occ_vect, na_bound_vect)
+# now use na_bound_vect as a mask for ran_occ_vect
+  # so observations outside of our study area are set to NA
+ran_occ_masked <- mask(ran_occ_vect, na_bound_vect)
 
 # convert to sf object for use in modelling scripts
-ran_occ_sf <- st_as_sf(ran_occ_vect_masked)
+ran_occ_sf <- st_as_sf(ran_occ_masked)
 
 # write ran_occ_sf to file for reuse
 st_write(ran_occ_sf, dsn = "data/processed/ran_occ_sf.shp", append = FALSE)
 
 
 # study area calculations:
+
+# Overall study extent:
 # read in sf object with new bounds:
 # reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
-na_bound_area <- st_transform(na_bound_sf, "EPSG:3005")
-na_bound_area <- st_set_crs(na_bound_sf, "EPSG:3005")
+na_bound_albers <- st_transform(na_bound_sf, "EPSG:3005")
+
 # calculate study area, in m^2 (default)
 na_bound_area <- st_area(na_bound_sf) # 3.83e+12 m^2
-# convert from m^2 to km^2
-na_bound_area <- st_area(na_bound_sf)/1000000
-na_bound_area <- units::set_units(st_area(na_bound_sf), km^2) # 3 831 703  km^2
+na_bound_area <- units::set_units(st_area(na_bound_sf), km^2) # 3 805 323  km^2
+
 
 
 # Skeetchestn territory:
@@ -106,7 +107,6 @@ plot(skeetch_sf)
 crs(skeetch_sf) # BC Albers, NAD83
 skeetch_area <- st_area(skeetch_sf) # 7e+09 m^2
 # convert from m^2 to km^2
-skeetch_area <- st_area(skeetch_sf)/1000000
 skeetch_area <- units::set_units(st_area(skeetch_sf), km^2) #6996 km^2
 
 # Vectorize this shapefile so it can be used to mask model outputs from larger extent
