@@ -92,7 +92,7 @@ set.seed(1234567)
 ran_pres_abs <- sample_pseudoabs(ran_occ_thin_dist, 
                                n = 10 * nrow(ran_occ_thin_dist), 
                                raster = na_bound_rast, 
-                               method = c("dist_disc", km2m(20), km2m(70))
+                               method = c("dist_disc", km2m(50), km2m(75))
                                )
 nrow(ran_pres_abs) # 11 440 
 
@@ -127,6 +127,8 @@ nrow(ran_pres_abs_pred) # 11 310, 130 rows removed with 10 km thinning and 5-50k
   # 11297 with 10 km thinning and 15-50 km buffer distance
   # 11236 with 10 km thinning and 20-70 km buffer distance
   # 7046 with 20 km thinning and 20-70 km buffer distance
+  # 10 976 with 10 km thinning and 50-100 km buffer distance
+  # 11 004 with 10 km thinning and 50-75 km buffer distance
 
 # skipped non-overlapping distribution step in tutorial
 
@@ -151,8 +153,12 @@ predictors_uncorr <- filter_high_cor(predictors_sample, cutoff = 0.8,
                                      verbose = TRUE, names = TRUE, to_keep = NULL)
 predictors_uncorr
 
+# still lots of variables, and R session tends to abort when using more than 5 layers
+# select 5 layers thought to matter most:
+predictors_uncorr <- c("soil_temp_5_15", "anth_biome", "lndcvr_na", "elevation_na", "watersheds")
+
 # recommended removing both soil_phh2o predictors, as they're highly correlated 
-  # with soil temp,but we want to include at least 1 because the literature 
+  # with soil temp, but we want to include at least 1 because the literature 
   # review says soil pH is thought to be important for determining geophyte distribution
 # add back in soil_phh2o_5_15 predictor, remove climate_zones 
   # (highly correlated, climate zones less important)
@@ -259,26 +265,38 @@ prediction_present_multirast <- predict_raster(ran_ensemble, predictors_multi_in
 
 ggplot() +
   geom_spatraster(data = prediction_present_multirast, aes (fill = mean)) +
-  scale_fill_terrain_c() + # c for continuous
-  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
+  scale_fill_terrain_c()# + # c for continuous
+  # geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 
 # subset the ensemble to only use the best models (AUC > 0.8)
-  # note: had to subset to 0.7 to include any models
-# take the median of the available model predictions (default is the mean)
+  # note: had to subset to 0.7 to include any models when pseudoabsence discs 
+  # are closer than 50km from presence points
+  # switched to 0.8 threshold for 50-75km pseudoabsence discs
+# take the mean of the available model predictions (default is the mean)
 prediction_present_best <- predict_raster(ran_ensemble, predictors_multi_input, 
-                                         metric_thresh = c("roc_auc", 0.7), 
-                                         fun = "median"
+                                         metric_thresh = c("roc_auc", 0.8), 
+                                         fun = "mean"
                                          )
 
 ggplot() +
-  geom_spatraster(data = prediction_present_best, aes(fill = median)) +
-  scale_fill_terrain_c() +
-  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
+  geom_spatraster(data = prediction_present_best, aes(fill = mean)) +
+  scale_fill_terrain_c()# +
+ #  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
+
+# write to file
+writeRaster(prediction_present_best, filename = "ran_multirast_predict-present_watersheds.tif")
+
+# attempt to plot prediction within skeetch territory
+prediction_present_best_skeetch <- crop(prediction_present_best, skeetch_vect)
+prediction_present_best_skeetch <- mask(prediction_present_best_skeetch, skeetch_vect)
+plot(prediction_present_best_skeetch)
+# write to file
+writeRaster(prediction_present_best_skeetch, filename = "ran_multirast_predict-present_watersheds_skeetch.tif")
 
 # desirable to have binary predictions (presence/absence) rather than probability of occurrence
   # calibrate threshold used to convert probabilities into classes
 ran_ensemble <- calib_class_thresh(ran_ensemble,
-                                   class_thresh = 0.5)
+                                   class_thresh = c(0.7))
 
 prediction_present_binary <- predict_raster(ran_ensemble, 
                                             predictors_multi_input, 

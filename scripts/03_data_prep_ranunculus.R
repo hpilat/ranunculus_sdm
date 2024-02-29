@@ -69,7 +69,11 @@ ran_occ_sf <- st_crop(ran_occ_sf, extent.test)
 writeRaster(na_bound_rast, filename = "data/processed/na_bound_rast_new.tif", overwrite = TRUE)
 
 # write na_bound_vect to file for use in tidysdm as a mask
-writeVector(na_bound_vect, filename = "data/processed/na_bound_vect.shp", overwrite = FALSE)
+writeVector(na_bound_vect, filename = "data/processed/na_bound_vect.shp", overwrite = TRUE)
+plot(na_bound_vect)
+
+# read in na_bound_vect
+na_bound_vect <- vect("data/processed/na_bound_vect.shp")
 
 # now use na_bound_masked as a mask for ran_occ_vect
 ran_occ_vect_masked <- mask(ran_occ_vect, na_bound_vect)
@@ -112,7 +116,6 @@ skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
 skeetch_vect <- project(skeetch_vect, "EPSG:4326")
 
 
-
 ## Predictor Data ##
 
 
@@ -127,27 +130,31 @@ worldclim_cropped <- crop(worldclim_tiles, na_bound_vect)
 worldclim_masked <- mask(worldclim_cropped, na_bound_vect)
 
 # write to file for reuse in 05_tidysdm_bioclim_30s.R
-# writeRaster(worldclim_masked, filename = "data/processed/worldclim_masked.tif", overwrite = FALSE)
+writeRaster(worldclim_masked, filename = "data/processed/worldclim_masked.tif", overwrite = TRUE)
 
 ## Numeric Rasters:
 
-# crop soil temperature SpatRaster to North American extent
-soil_temp_0_5 <- crop(soil_temp_0_5, na_bound_vect)
-soil_temp_5_15 <- crop(soil_temp_5_15, na_bound_vect)
 
 # reproject soil temperature SpatRasters to WGS84
 soil_temp_0_5 <- terra::project(soil_temp_0_5, "EPSG:4326",
                                 method = "bilinear")
 soil_temp_5_15 <- terra::project(soil_temp_5_15, "EPSG:4326",
-                                method = "bilinear")
+                                 method = "bilinear")
+
+# crop soil temperature SpatRaster to North American extent
+soil_temp_0_5 <- crop(soil_temp_0_5, na_bound_vect)
+soil_temp_5_15 <- crop(soil_temp_5_15, na_bound_vect)
+
 
 # write processed data to file for faster computation
-soil_temp_0_5 <- writeRaster(soil_temp_0_5, filename = "data/processed/soil_temp_0_5.tif")
-soil_temp_5_15 <- writeRaster(soil_temp_5_15, filename = "data/processed/soil_temp_5_15cm.tif")
+writeRaster(soil_temp_0_5, filename = "data/processed/soil_temp_0_5.tif", overwrite = TRUE)
+writeRaster(soil_temp_5_15, filename = "data/processed/soil_temp_5_15.tif", overwrite = TRUE)
 
 # read in soil temperature data from file:
 soil_temp_0_5 <- rast("data/processed/soil_temp_0_5.tif")
 soil_temp_5_15 <- rast("data/processed/soil_temp_5_15.tif")
+# had issues with soil_temp_5_15 saving to file, need to crop again
+soil_temp_5_15 <- crop(soil_temp_5_15, na_bound_vect)
 
 
 # reproject soil pH SpatRasters to WGS84
@@ -161,8 +168,8 @@ soil_phh2o_0_5 <- crop(soil_phh2o_0_5, na_bound_vect)
 soil_phh2o_5_15 <- crop(soil_phh2o_5_15, na_bound_vect)
 
 # write processed soil pH data to file for faster computation
-soil_phh2o_0_5 <- writeRaster(soil_phh2o_0_5, filename = "data/processed/soil_phh2o_0_5.tif")
-soil_phh2o_5_15 <- writeRaster(soil_phh2o_5_15, filename = "data/processed/soil_phh2o_5_15.tif")
+writeRaster(soil_phh2o_0_5, filename = "data/processed/soil_phh2o_0_5.tif", overwrite = TRUE)
+writeRaster(soil_phh2o_5_15, filename = "data/processed/soil_phh2o_5_15.tif", overwrite = TRUE)
 
 # read in soil pH data from file
 soil_phh2o_0_5 <- rast("data/processed/soil_phh2o_0_5.tif")
@@ -178,8 +185,7 @@ elevation_na <- terra::resample(elevation_na, soil_temp_0_5)
 elevation_na <- crop(elevation_na, na_bound_vect)
 
 # write elevation_na to file for easier reuse
-elevation_na <- writeRaster(elevation_na, filename = "data/processed/elevation_na.tif", 
-                            overwrite = TRUE)
+writeRaster(elevation_na, filename = "data/processed/elevation_na.tif", overwrite = TRUE)
 
 # read in elevation data
 elevation_na <- rast("data/processed/elevation_na.tif")
@@ -209,9 +215,9 @@ lndcvr_na <- crop(lndcvr_na_agg, na_bound_vect)
 lndcvr_na <- resample(lndcvr_na, soil_temp_0_5)
 
 # create file of processed landcover data for faster re-use
-lndcvr_na <- writeRaster(lndcvr_na, "data/processed/lndcvr_na.tif", overwrite = TRUE)
+writeRaster(lndcvr_na, filename = "data/processed/lndcvr_na.tif", overwrite = TRUE)
 
-# import processed landcover data from new file created above
+# read in processed landcover data from new file created above
 lndcvr_na <- rast("data/processed/lndcvr_na.tif")
 
 # reproject anthropogenic biomes data to WGS84
@@ -224,7 +230,7 @@ anth_biome <- resample(anth_biome, soil_temp_0_5)
 anth_biome <- crop(anth_biome, na_bound_vect)
 
 # write anth_biome to file for faster computation
-anth_biome <- writeRaster(anth_biome, filename = "data/processed/anth_biome.tif")
+writeRaster(anth_biome, filename = "data/processed/anth_biome.tif", overwrite = TRUE)
 
 # read in processed anth_biome raster
 anth_biome <- rast("data/processed/anth_biome.tif")
@@ -245,10 +251,22 @@ climate_zones<- resample(climate_zones, lndcvr_na)
 climate_zones <- crop(climate_zones, na_bound_vect)
 
 # write to file for faster computation
-climate_zones <- writeRaster(climate_zones, filename = "data/processed/climate_zones.tif")
+writeRaster(climate_zones, filename = "data/processed/climate_zones.tif", overwrite = TRUE)
 
 # read in climate_zones data from file
 climate_zones <- rast("data/processed/climate_zones.tif")
+
+# repeat steps above for ecoregions
+ecoregions <- rasterize(ecoregions_vect, temprast, field = "NameL3_En")
+ecoregions <- project(ecoregions, "EPSG:4326")
+ecoregions <- resample(ecoregions, lndcvr_na)
+ecoregions <- crop(ecoregions, na_bound_vect)
+
+# write to file for faster computation
+writeRaster(ecoregions, filename = "data/processed/ecoregions.tif", overwrite = TRUE)
+
+# read in ecoregions raster
+ecoregions <- rast("data/processed/ecoregions.tif")
 
 # repeat above steps for protected areas data
 # IUCN categories
@@ -259,7 +277,7 @@ protect_area_IUCN <- crop(protect_area_IUCN, na_bound_vect)
 plot(protect_area_IUCN)
 
 # write to file for faster computation
-protect_area_IUCN <- writeRaster(protect_area_IUCN, filename = "data/processed/protect_area_IUCN.tif")
+writeRaster(protect_area_IUCN, filename = "data/processed/protect_area_IUCN.tif", overwrite = TRUE)
 
 # read in protected areas IUCN data from file
 protect_area_IUCN <- rast("data/processed/protect_area_IUCN.tif")
@@ -272,65 +290,41 @@ protect_area_OECM <- crop(protect_area_OECM, na_bound_vect)
 plot(protect_area_OECM)
 
 # write to file for faster computation
-protect_area_OECM <- writeRaster(protect_area_OECM, filename = "data/processed/protect_area_OECM.tif")
+writeRaster(protect_area_OECM, filename = "data/processed/protect_area_OECM.tif", overwrite = TRUE)
 
 # read in protected areas IUCN data from file
 protect_area_OECM <- rast("data/processed/protect_area_OECM.tif")
 
-# repeat above steps for watershed data
-watersheds <- rasterize(watersheds_vect, temprast, field = "NAW4_EN")
+# watersheds data was not behaving like the rest, so used different approach
+watersheds_vect$NAW4_numeric <- as.numeric(as.factor(as.character(watersheds_vect$NAW4_EN)))
+watersheds <- rasterize(watersheds_vect, temprast, field = "NAW4_numeric")
 watersheds <- project(watersheds, "EPSG:4326")
 watersheds <- resample(watersheds, lndcvr_na)
 watersheds <- crop(watersheds, na_bound_vect)
-watersheds <- mask(watersheds, na_bound_vect)
 plot(watersheds)
+# need to crop and mask to new extent (na_bound_vect)
 
 # write to file for faster computation
-watersheds <- writeRaster(watersheds, filename = "data/processed/watersheds.tif")
+writeRaster(watersheds, filename = "data/processed/watersheds.tif", overwrite = TRUE)
 
 # read in watersheds data from file
 watersheds <- rast("data/processed/watersheds.tif")
 
-# create a multilayer raster of the predictor variables
-# can do up to 16 different layers 
-  # therefore, likely have to leave out precip and tavg_mar_jun, since they have
-  # 12 and 4 layers, respectively
-# predictors_multirast <- c(anth_biome, 
-                        #  climate_zones, 
-                        #  elevation_na, 
-                        #  lndcvr_na, 
-                          # precip, 
-                        #  protect_area_IUCN, 
-                        #  protect_area_OECM, 
-                        #  soil_phh2o_0_5, 
-                        #  soil_phh2o_5_15, 
-                        #  soil_temp_0_5, 
-                        #  soil_temp_5_15, 
-                          # tavg_mar_jun, 
-                        #  watersheds)
-
-# mask the multilayer raster so the values outside of na_bound are NA
-# predictors_multirast <- mask(predictors_multirast, na_bound)
-
-
-# code below is after working through tidysdm script and figuring out how
-  # multilayer raster needs to be formatted:
-
-# tidysdm may require rasters to be numeric, so convert categorical rasters
-# so categories are coded as numbers
-# need to figure out below code:
+# tidysdm requires rasters to be numeric, so convert categorical rasters
+# so categories are coded as numbers:
 anth_biome <-as.numeric(anth_biome, index = 1:nlevels(anth_biome))
 climate_zones <- as.numeric(climate_zones, index = 1:nlevels(climate_zones))
+ecoregions <- as.numeric(ecoregions, index = 1:nlevels(ecoregions))
 protect_area_IUCN <- as.numeric(protect_area_IUCN, index = 1:nlevels(protect_area_IUCN))
 protect_area_OECM <- as.numeric(protect_area_OECM, index = 1:nlevels(protect_area_OECM))
 # watersheds <- as.numeric(watersheds, index = 1:nlevels(watersheds))
-  # ^ doesn't work, all values NA
-# also didn't work: watersheds <- catalyze(watersheds, index = "value")
-
+  # ^ doesn't work, all values NA, but above code worked for watersheds
 
 # need to change the names of the columns/layers to match our objects
+  # tidysdm requirement
 names(anth_biome) <- "anth_biome"
 names(climate_zones) <- "climate_zones"
+names(ecoregions) <- "ecoregions"
 names(elevation_na) <- "elevation_na"
 names(lndcvr_na) <- "lndcvr_na"
 names(protect_area_IUCN) <- "protect_area_IUCN"
@@ -342,23 +336,28 @@ names(soil_temp_5_15) <- "soil_temp_5_15"
 names(watersheds) <- "watersheds"
 
 # now create a multilayer spatraster 
+  # note: annotated out protected areas rasters because they introduce too many
+  # NA values (too many rows need to be removed from predictors_multi when protected areas are included)
 predictors_multi <- c(anth_biome, 
-                          climate_zones, 
-                          elevation_na, 
-                          lndcvr_na, 
-                        # protect_area_IUCN, 
-                        # protect_area_OECM, 
-                          soil_phh2o_0_5, 
-                          soil_phh2o_5_15, 
-                          soil_temp_0_5, 
-                          soil_temp_5_15)#,  
-                         #  watersheds) # was showing all NA values in tidysdm output after using as.numeric
+                      climate_zones, 
+                      ecoregions, 
+                      elevation_na, 
+                      lndcvr_na, 
+                      # protect_area_IUCN, introduces lots of NA values
+                      # protect_area_OECM, introduces lots of NA values
+                      soil_phh2o_0_5, 
+                      soil_phh2o_5_15, 
+                      soil_temp_0_5, 
+                      soil_temp_5_15)# ,  
+                      watersheds)
 
 # mask the multilayer raster so the values outside of na_bound are NA
 predictors_multi <- mask(predictors_multi, na_bound_vect)
 
 # write the multilayer raster to file for faster computation
-writeRaster(predictors_multi, filename = "data/processed/predictors_multi.tif")
+writeRaster(predictors_multi, 
+            filename = "data/processed/predictors_multi.tif", 
+            overwrite = TRUE)
 
 # read in multilayer raster
 predictors_multi <- rast("data/processed/predictors_multi.tif")
