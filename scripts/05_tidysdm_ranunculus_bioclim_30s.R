@@ -16,13 +16,22 @@ library(ggplot2)
 library(overlapping)
 
 # North American extent (west coast to continental divide)
-# new geographic extent created in continental_divide.Rmd
-# read in na_bound_rast
-na_bound_rast <- rast("data/processed/na_bound_rast.tif")
-na_bound_sf <- read_sf("data/processed/ran_occ_sf.shp")
+# new geographic extent created in 02_continental_divide.Rmd
+# extent cropped to smaller extent in 03_data_prep_ranunculus.R
+# read in extent objects:
+# raster to use as a basemap
+na_bound_rast <- rast("data/processed/na_bound_rast_new.tif")
+# vector object to use for masking and area calculations
 na_bound_vect <- vect("data/processed/na_bound_vect.shp")
+# sf object masked to study extent, for area calculations
+na_bound_sf <- read_sf("data/processed/na_bound_sf_masked.shp")
+# Skeetchestn territory boundary vector for masking:
+skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
+# reproject to WGS84
+skeetch_vect <- project(skeetch_vect, "EPSG:4326")
 
 # read in Ranunculus glaberrimus occurrences:
+# cropped to proper study extent in 03_data_prep_ranunculus.R
 ran_occ_sf <- st_read(dsn = "data/processed/ran_occ_sf.shp")
 
 # plot occurrences directly on raster with predictor variables
@@ -81,7 +90,7 @@ set.seed(1234567)
 ran_pres_abs <- sample_pseudoabs(ran_occ_thin_dist, 
                                  n = 10 * nrow(ran_occ_thin_dist), 
                                  raster = na_bound_rast, 
-                                 method = c("dist_disc", km2m(20), km2m(50))
+                                 method = c("dist_disc", km2m(50), km2m(75))
                                  )
 nrow(ran_pres_abs) 
 # 11 440 with 10km thinning
@@ -100,6 +109,7 @@ ggplot() +
 summary(climate_present) # 50 000 + NAs per column
 nrow(ran_pres_abs) # 11 440
 nrow(climate_present) # 4042
+
 ran_pres_abs_pred <- ran_pres_abs %>% 
   bind_cols(terra::extract(climate_present, ran_pres_abs, ID = FALSE, na.rm = TRUE))
 nrow(ran_pres_abs_pred) # 11 440
@@ -110,11 +120,9 @@ summary(ran_pres_abs_pred) # still some NAs, bioclim script magically has none a
 # remove rows with NA values
 ran_pres_abs_pred <- na.omit(ran_pres_abs_pred)
 nrow(ran_pres_abs_pred) # 11 415, 25 rows removed
+summary(ran_pres_abs_pred) # No NA values
 
 # skipped non-overlapping distribution step in tutorial
-
-# inspect the variables for collinearity
-pairs(climate_present)
 
 # need a smaller sample to calculate collinearity between variables
 
@@ -124,6 +132,7 @@ predictors_sample <- terra::spatSample(climate_present, size = 5000,
                                        na.rm = FALSE, as.raster = TRUE,
                                        values = TRUE, cells = FALSE, xy = TRUE)
 
+pairs(predictors_sample)
 
 # subset to variables below 0.8 Pearson's correlation coefficient
 # climate_present = SpatRaster with predictor data (all numeric, no NAs)
@@ -132,13 +141,22 @@ predictors_uncorr <- filter_high_cor(predictors_sample, cutoff = 0.8,
                                      verbose = TRUE, names = TRUE, to_keep = NULL)
 predictors_uncorr
 
+# 9 uncorrelated variables - need to further filter down to 5 in order for projections to run
+# more than 5 layers = too much RAM required at this resolution
+suggested_vars <- c("tile_14_wc2.1_30s_bio_6",
+                    "tile_14_wc2.1_30s_bio_12",
+                    "tile_14_wc2.1_30s_bio_10",
+                    "tile_14_wc2.1_30s_bio_19",
+                    "tile_14_wc2.1_30s_bio_7")
+
 # remove highly correlated predictors
 # here is where the "class" column gets dropped, which messes up recipe below
 # need to retain class column (not in original tutorial code)
-ran_pres_abs_pred <- ran_pres_abs_pred %>% select(all_of(c(predictors_uncorr, "class")))
+ran_pres_abs_pred <- ran_pres_abs_pred %>% dplyr::select(dplyr::all_of(c(suggested_vars, "class")))
+ran_pres_abs_pred
 
-# now subset the uncorrelated predictors within climate_present
-climate_present_uncorr <- climate_present[[predictors_uncorr]]
+# now subset the uncorrelated and selected predictors within climate_present
+climate_present <- climate_present[[suggested_vars]]
 
 
 
@@ -228,12 +246,12 @@ ggplot() +
 # subset the model to only use the best models, based on AUC
 # set threshold of 0.8 for AUC
 # take the median of the available model predictions (mean is the default)
-prediction_present_best <- predict_raster(ran_ensemble, climate_present_uncorr, 
-                                           metric_thresh = c("roc_auc", 0.7), 
-                                           fun= "median")
+prediction_present_best <- predict_raster(ran_ensemble, climate_present, 
+                                           metric_thresh = c("roc_auc", 0.8), 
+                                           fun= "mean")
 
 ggplot() +
-  geom_spatraster(data = prediction_present_best, aes(fill = median)) +
+  geom_spatraster(data = prediction_present_best, aes(fill = mean)) +
   scale_fill_terrain_c() + # c = continuous
   geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 # if plot doesn't change much, models are consistent

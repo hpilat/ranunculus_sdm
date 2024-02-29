@@ -21,10 +21,11 @@ library(overlapping)
 # read in extent objects:
 # raster to use as a basemap
 na_bound_rast <- rast("data/processed/na_bound_rast_new.tif")
-# sf object to use for area calculations
-na_bound_sf <- read_sf("data/processed/na_bound_masked.shp")
-# vector object to use for masking (if needed)
+# vector object to use for masking and area calculations
 na_bound_vect <- vect("data/processed/na_bound_vect.shp")
+# sf object masked to study extent, for area calculations
+na_bound_sf <- read_sf("data/processed/na_bound_sf_masked.shp")
+# Skeetchestn territory boundary vector for masking:
 skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
 # reproject to WGS84
 skeetch_vect <- project(skeetch_vect, "EPSG:4326")
@@ -101,6 +102,8 @@ nrow(ran_pres_abs) # 11 440
 
 # 5-50 discs = around 0.7 AUC for most models
 # 15-50 discs = around 0.75 for most models and ensemble
+# 50-75 discs = around 0.85 for most models and ensemble
+# 50-100 discs - high performance but R aborted at projection phase
 
 # plot presences and absences
 ggplot() +
@@ -120,7 +123,7 @@ ran_pres_abs_pred <- ran_pres_abs %>%
   bind_cols(terra::extract(predictors_multi, ran_pres_abs, ID = FALSE, na.rm = TRUE))
 nrow(ran_pres_abs_pred) # 11 440
 
-# after this step, no NA values in ran_occ_thin from tutorial
+# after this step, no NA values in ran_occ_thin (predictors_multi equivalent) from tutorial
   # but I have NA values from predictors_multi
 summary(ran_pres_abs_pred) # still some NAs, bioclim script magically has none at this point
 
@@ -158,23 +161,14 @@ predictors_uncorr
 
 # still lots of variables, and R session tends to abort when using more than 5 layers
 # select 5 layers thought to matter most:
+# FEB 29 ATTEMPT TO USE ECOREGIONS:
 predictors_uncorr <- c("soil_temp_5_15", "anth_biome", "lndcvr_na", "elevation_na", "watersheds")
-
-# recommended removing both soil_phh2o predictors, as they're highly correlated 
-  # with soil temp, but we want to include at least 1 because the literature 
-  # review says soil pH is thought to be important for determining geophyte distribution
-# add back in soil_phh2o_5_15 predictor, remove climate_zones 
-  # (highly correlated, climate zones less important)
-# predictors_uncorr <- c(predictors_uncorr, "soil_phh2o_5_15")
-# predictors_uncorr
-# now remove climate_zones
-# predictors_uncorr <- predictors_uncorr[ !predictors_uncorr == "climate_zones"]
                                       
 
 # remove highly correlated predictors
 # here is where the "class" column gets dropped, which messes up recipe below
   # need to retain class column (not in original tutorial code)
-ran_pres_abs_pred <- ran_pres_abs_pred %>% select(all_of(c(predictors_uncorr, "class")))
+ran_pres_abs_pred <- ran_pres_abs_pred %>% dplyr::select(dplyr::all_of(c(predictors_uncorr, "class")))
 
 # now subset the uncorrelated predictors within the multiraster
 predictors_multi_input <- predictors_multi[[predictors_uncorr]]
@@ -287,19 +281,19 @@ ggplot() +
  #  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 
 # write to file
-writeRaster(prediction_present_best, filename = "ran_multirast_predict-present_watersheds.tif")
+writeRaster(prediction_present_best, filename = "outputs/ran_multirast_predict-present_ecoregions-watersheds.tif")
 
 # attempt to plot prediction within skeetch territory
 prediction_present_best_skeetch <- crop(prediction_present_best, skeetch_vect)
 prediction_present_best_skeetch <- mask(prediction_present_best_skeetch, skeetch_vect)
 plot(prediction_present_best_skeetch)
 # write to file
-writeRaster(prediction_present_best_skeetch, filename = "ran_multirast_predict-present_watersheds_skeetch.tif")
+writeRaster(prediction_present_best_skeetch, filename = "outputs/ran_multirast_predict-present_ecoregions-watersheds_skeetch.tif")
 
 # desirable to have binary predictions (presence/absence) rather than probability of occurrence
   # calibrate threshold used to convert probabilities into classes
 ran_ensemble <- calib_class_thresh(ran_ensemble,
-                                   class_thresh = c(0.7))
+                                   class_thresh = "tss_max")
 
 prediction_present_binary <- predict_raster(ran_ensemble, 
                                             predictors_multi_input, 
@@ -335,7 +329,7 @@ prediction_present_area <- units::set_units(st_area(prediction_present_sf), km^2
 # 431 186 km^2 of suitable habitat
 
 # total study area calculations:
-# read in sf object with new bounds:
+# need to use masked sf object: na_bound_sf
 # reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
 na_bound_area <- st_transform(na_bound_sf, "EPSG:3005")
 na_bound_area <- st_set_crs(na_bound_sf, "EPSG:3005")
