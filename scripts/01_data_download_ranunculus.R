@@ -113,6 +113,10 @@ anth_biome <- rast("data/raw/anthromes_EqArea.tif")
 climate_zones_sf <- read_sf("data/raw/North_America_Climate_Zones.shp")
 climate_zones_vect <- vect(climate_zones_sf)
 
+# read in North American Ecoregions (level III) data
+ecoregions_sf <- read_sf("data/raw/na_terrestrial_ecoregions_v2_level_iii_shapefile/NA_Terrestrial_Ecoregions_v2_Level_III_Shapefile/NA_TerrestrialEcoregions_LIII/data/NA_Terrestrial_Ecoregions_v2_level3.shp")
+ecoregions_vect <- vect(ecoregions_sf)
+
 # elevation data for North America
 elevation_na <- rast("data/raw/northamerica_elevation_cec_2023.tif")
 
