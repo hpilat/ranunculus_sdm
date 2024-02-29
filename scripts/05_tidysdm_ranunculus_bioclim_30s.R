@@ -256,6 +256,17 @@ ggplot() +
   geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 # if plot doesn't change much, models are consistent
 # model gives us probability of occurrence
+
+# write to file
+writeRaster(prediction_present_best, filename = "outputs/ran_bioclim30s_predict-present_5-predictors.tif")
+
+# plot prediction within skeetch territory
+prediction_present_best_skeetch <- crop(prediction_present_best, skeetch_vect)
+prediction_present_best_skeetch <- mask(prediction_present_best_skeetch, skeetch_vect)
+plot(prediction_present_best_skeetch)
+# write to file
+writeRaster(prediction_present_best_skeetch, filename = "outputs/ran_bioclim30s_predict-present_5-predictors_skeetch.tif")
+
 # can convert to binary predictions (present vs absence)
 
 ran_ensemble_binary <- calib_class_thresh(ran_ensemble, 
@@ -263,7 +274,7 @@ ran_ensemble_binary <- calib_class_thresh(ran_ensemble,
                                           )
 
 prediction_present_binary <- predict_raster(ran_ensemble_binary, 
-                                            climate_present_uncorr, 
+                                            climate_present, 
                                             type = "class", 
                                             class_thresh = c("tss_max"))
 prediction_present_binary
@@ -293,7 +304,6 @@ prediction_present_area <- st_transform(prediction_present_sf, "EPSG:3005")
 prediction_present_area <- st_set_crs(prediction_present_sf, "EPSG:3005")
 prediction_present_area <- st_area(prediction_present_sf) # 1.48e+12 m^2
 # convert from m^2 to km^2
-prediction_present_area <- st_area(prediction_present_sf)/1000000
 prediction_present_area <- units::set_units(st_area(prediction_present_sf), km^2) 
   # 1 478 904 km^2 of suitable habitat
 
