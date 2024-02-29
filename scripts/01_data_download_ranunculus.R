@@ -42,7 +42,10 @@ ran_occ_download <- occ_download_get(key = '0067361-231120084113126',
 
 ## Predictor Data ##
 
-# Present Climate Data: highest resolution from geodata is 0.5 minutes of a degree 
+
+# Present Climate Data:
+
+# highest resolution from geodata is 0.5 minutes of a degree 
 # tidysdm tutorial uses pastclim to access WorldClim data, but only low resolution
   # datasets are available
 # attempt to download higher resolution WorldClim data for Canada and USA:
@@ -91,19 +94,7 @@ worldclim_tiles <- terra::merge(worldclim_1_2, worldclim_3_4, first = TRUE)
 writeRaster(worldclim_tiles, filename = "data/processed/worldclim_tiles_combined.tif")
 
 
-# Future Climate Data: highest resolution from geodata is 2.5 minutes of a degree
-
-cmip_tile1 <- geodata::cmip6_tile(model = "HadGEM3-GC31-LL", 
-                                  ssp = "126", 
-                                  time = "2061-2080", 
-                                  var = "bioc", 
-                                  res = 2.5, 
-                                  path = "data/raw/", 
-                                  lon = -150, 
-                                  lat = 50)
-
-# tile1 covers -120 to -150 lon and 30 to 60 lat
-
+# Informed Predictor Data:
 
 
 # read in anthropogenic biome data
@@ -152,52 +143,4 @@ soil_temp_5_15 <- rast("data/raw/SBIO4_5_15cm_Temperature_Seasonality.tif")
 # read in watersheds data
 watersheds_sf <- read_sf("data/raw/watersheds_shapefile/Watersheds_Shapefile/NA_Watersheds/data/watershed_p_v2.shp")
 watersheds_vect <- vect(watersheds_sf)
-
-## code below not relevant currently, but saving just in case
-
-# import global WorldClim average temperature
-# temp_avg_global <- geodata::worldclim_global(var = "tavg", 
-#  res = "2.5", 
-#  path = "data/raw/",
-#  version = "2.1")
-
-# import global WorldClim precipitation data
-# precip_global <- geodata::worldclim_global(var = "prec", 
-#  res = "2.5", 
-#  path = "data/raw/", 
-#  version = "2.1")
-
-
-# future climate predictions Shared Socioeconomic Pathway 126 (no climate policy?)
-# cmip6_2021_2040_126 <- geodata::cmip6_tile(lon, lat, model, ssp = "126", time = "2021-2040", 
-                           #   var = , res = 2.5, path = )
-# cmip6_2041_2060_126 <- geodata::cmip6_tile(lon, lat, model, ssp = "126", time = "2041-2060", 
-                           #   var = , res = 2.5, path = )
-# cmip6_2061_2080_126 <- geodata::cmip6_tile(lon, lat, model, ssp = "126", time = "2061-2080", 
-                           #   var = , res = 2.5, path = )
-
-# future climate predictions Shared Socioeconomic Pathway 245 (low/mid)
-# cmip6_2021_2040_245 <- geodata::cmip6_tile(lon, lat, model, ssp = "245", time = "2021-2040", 
-                           #   var = , res = 2.5, path = )
-# cmip6_2041_2060_245 <- geodata::cmip6_tile(lon, lat, model, ssp = "245", time = "2041-2060", 
-                           #   var = , res = 2.5, path = )
-# cmip6_2061_2080_245 <- geodata::cmip6_tile(lon, lat, model, ssp = "245", time = "2061-2080", 
-                           #   var = , res = 2.5, path = )
-
-# future climate predictions Shared Socioeconomic Pathway 370 (mid/high)
-# cmip6_2021_2040_370 <- geodata::cmip6_tile(lon, lat, model, ssp = "370", time = "2021-2040", 
-                           #   var = , res = 2.5, path = )
-# cmip6_2041_2060_370 <- geodata::cmip6_tile(lon, lat, model, ssp = "370", time = "2041-2060", 
-                           #   var = , res = 2.5, path = )
-# cmip6_2061_2080_370 <- geodata::cmip6_tile(lon, lat, model, ssp = "370", time = "2061-2080", 
-                           #   var = , res = 2.5, path = )
-
-# future climate predictions Shared Socioeconomic Pathway 545 (high)
-# cmip6_2021_2040_545 <- geodata::cmip6_tile(lon, lat, model, ssp = "545", time = "2021-2040", 
-                           #   var = , res = 2.5, path = )
-# cmip6_2041_2060_545 <- geodata::cmip6_tile(lon, lat, model, ssp = "545", time = "2041-2060", 
-                           #   var = , res = 2.5, path = )
-# cmip6_2061_2080_545 <- geodata::cmip6_tile(lon, lat, model, ssp = "545", time = "2061-2080", 
-                           #   var = , res = 2.5, path = )
-
 
