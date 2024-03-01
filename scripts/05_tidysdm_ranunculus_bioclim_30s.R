@@ -64,10 +64,11 @@ ggplot() +
 # attempted 5km, filter_high_cor below wouldn't run, so try 10
 # 10 still didn't work, try 15?
 set.seed(1234567)
-ran_occ_thin_dist <- thin_by_dist(ran_occ_sf, dist_min = km2m(10))
+ran_occ_thin_dist <- thin_by_dist(ran_occ_sf, dist_min = km2m(15))
 nrow(ran_occ_thin_dist) # 1400 at 5km thinning, 1046 at 10km thinning
 # 1040 at 10km thinning with reduced spatial extent
   # but failed to project with high res bioclim data
+# 827 at 15 km thinning
 # 653 at 20km spatial thinning
 
 ggplot() +
@@ -94,6 +95,7 @@ ran_pres_abs <- sample_pseudoabs(ran_occ_thin_dist,
                                  )
 nrow(ran_pres_abs) 
 # 11 440 with 10km thinning
+# 9097 with 15km thinning
 # 7183 with 20km thinning
 
 # plot presences and absences
@@ -236,12 +238,12 @@ ran_ensemble_metrics <- collect_metrics(ran_ensemble)
 ## Projecting to the Present ##
 
 # make predictions with the ensemble
-prediction_present <- predict_raster(ran_ensemble, climate_present_uncorr)
-ggplot() +
-  geom_spatraster(data = prediction_present, aes(fill = mean)) +
-  scale_fill_terrain_c() + # "c" for continuous variables
+# prediction_present <- predict_raster(ran_ensemble, climate_present_uncorr)
+# ggplot() +
+ #  geom_spatraster(data = prediction_present, aes(fill = mean)) +
+ #  scale_fill_terrain_c() + # "c" for continuous variables
   # plot the presences used in the model
-  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
+ #  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 
 # subset the model to only use the best models, based on AUC
 # set threshold of 0.8 for AUC
@@ -252,20 +254,20 @@ prediction_present_best <- predict_raster(ran_ensemble, climate_present,
 
 ggplot() +
   geom_spatraster(data = prediction_present_best, aes(fill = mean)) +
-  scale_fill_terrain_c() + # c = continuous
-  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
+  scale_fill_terrain_c() # + # c = continuous
+ # geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 # if plot doesn't change much, models are consistent
 # model gives us probability of occurrence
 
 # write to file
-writeRaster(prediction_present_best, filename = "outputs/ran_bioclim30s_predict-present_5-predictors.tif")
+writeRaster(prediction_present_best, filename = "outputs/ran_bioclim30s_predict-present_5-predictors_thinned.tif")
 
 # plot prediction within skeetch territory
 prediction_present_best_skeetch <- crop(prediction_present_best, skeetch_vect)
 prediction_present_best_skeetch <- mask(prediction_present_best_skeetch, skeetch_vect)
 plot(prediction_present_best_skeetch)
 # write to file
-writeRaster(prediction_present_best_skeetch, filename = "outputs/ran_bioclim30s_predict-present_5-predictors_skeetch.tif")
+writeRaster(prediction_present_best_skeetch, filename = "outputs/ran_bioclim30s_predict-present_5-predictors_thinned_skeetch.tif")
 
 # can convert to binary predictions (present vs absence)
 
@@ -283,12 +285,13 @@ ggplot() +
   geom_spatraster(data = prediction_present_binary, aes(fill = binary_mean)) +
   geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 
+ggplot() +
+  geom_spatraster(data = prediction_binary_skeetch, aes(fill = binary_mean))
+
 # turn presence into polygon so we can calculate suitable area
 # first need to filter out presence cells from raster
 prediction_present_presence <- prediction_present_binary %>% 
   filter(binary_mean == "presence")
-
-# repeat for absences? May not be entirely useful information
 
 # vectorize raster to get a polygon around presences
 # need to turn raster into data.frame first
@@ -307,9 +310,55 @@ prediction_present_area <- st_area(prediction_present_sf) # 1.48e+12 m^2
 prediction_present_area <- units::set_units(st_area(prediction_present_sf), km^2) 
   # 1 478 904 km^2 of suitable habitat
 
+# Overall study extent:
+# read in sf object with new bounds:
+# reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
+na_bound_albers <- st_transform(na_bound_sf, "EPSG:3005")
+
+# calculate study area, in m^2 (default)
+na_bound_area <- st_area(na_bound_sf) # 3.83e+12 m^2
+na_bound_area <- units::set_units(st_area(na_bound_sf), km^2) # 3 805 323  km^2
+
 # divide predicted present area by total study area to get proportion
 proportion_suitable_present <- prediction_present_area/na_bound_area
 
+# calculations for Skeetchestn
+# crop results to Skeetchestn territory
+prediction_binary_skeetch <- crop(prediction_present_binary, skeetch_vect)
+prediction_binary_skeetch <- mask(prediction_binary_skeetch, skeetch_vect)
+
+# turn presence into polygon so we can calculate suitable area
+# first need to filter out presence cells from raster
+prediction_present_presence_skeetch <- prediction_binary_skeetch %>% 
+  filter(binary_mean == "presence")
+
+# vectorize raster to get a polygon around presences
+# need to turn raster into data.frame first
+prediction_present_presence_skeetch <- as.polygons(prediction_present_presence_skeetch)
+
+# now turn prediction_present_pres polygons into sf object
+prediction_present_skeetch_sf <- st_as_sf(prediction_present_presence_skeetch)
+
+crs(prediction_present_skeetch_sf) # WGS84
+
+# reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
+prediction_present_skeetch_area <- st_transform(prediction_present_skeetch_sf, "EPSG:3005")
+prediction_present_skeetch_area <- st_area(prediction_present_skeetch_sf) # 1.98e+9 m^2
+# convert from m^2 to km^2
+prediction_present_skeetch_area <- units::set_units(st_area(prediction_present_skeetch_sf), km^2) 
+# 1982 km^2 of suitable habitat
+
+# calculate area of Skeetchestn Territory:
+skeetch_sf <- read_sf("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
+plot(skeetch_sf)
+crs(skeetch_sf) # BC Albers, NAD83
+skeetch_area <- st_area(skeetch_sf) # 7e+09 m^2
+# convert from m^2 to km^2
+skeetch_area <- units::set_units(st_area(skeetch_sf), km^2)
+
+# proportion of suitable area relative to Skeetchestn Territory:
+proportion_suitable_present_skeetch <- prediction_present_skeetch_area/skeetch_area
+# 28.3%
 
 
 #### Projecting to the Future ####
