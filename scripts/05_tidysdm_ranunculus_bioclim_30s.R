@@ -322,6 +322,7 @@ na_bound_area <- units::set_units(st_area(na_bound_sf), km^2) # 3 805 323  km^2
 # divide predicted present area by total study area to get proportion
 proportion_suitable_present <- prediction_present_area/na_bound_area
 
+
 # calculations for Skeetchestn
 # crop results to Skeetchestn territory
 prediction_binary_skeetch <- crop(prediction_present_binary, skeetch_vect)

@@ -313,15 +313,8 @@ ggplot() +
   geom_spatraster(data = prediction_present_binary, aes(fill = binary_mean)) +
   geom_sf(data= ran_pres_abs_pred %>% filter(class == "presence"))
 
-prediction_binary_skeetch <- crop(prediction_present_binary, skeetch_vect)
-prediction_binary_skeetch <- mask(prediction_binary_skeetch, skeetch_vect)
-
-ggplot() +
-  geom_spatraster(data = prediction_binary_skeetch, aes(fill = binary_mean))
-
 # write to file
-writeRaster(prediction_binary_skeetch, filename = "outputs/ran_multirast_5predictors-ecoregions_thinned_skeetch_binary.tif")
-
+writeRaster(prediction_present_binary, filename = "outputs/ran_multi_prediction_present_binary.tif")
 
 # turn presence into polygon so we can calculate suitable area
 # first need to filter out presence cells from raster
@@ -355,6 +348,52 @@ na_bound_area <- units::set_units(st_area(na_bound_sf), km^2) # 3 805 323  km^2
 # divide predicted present area by total study area to get proportion
 proportion_suitable_present <- prediction_present_area/na_bound_area
 # 11.1%
+
+
+# calculations for Skeetchestn
+
+# crop and mask total projection to Skeetchestn Territory
+prediction_binary_skeetch <- crop(prediction_present_binary, skeetch_vect)
+prediction_binary_skeetch <- mask(prediction_binary_skeetch, skeetch_vect)
+
+ggplot() +
+  geom_spatraster(data = prediction_binary_skeetch, aes(fill = binary_mean))
+
+# write to file
+writeRaster(prediction_binary_skeetch, filename = "outputs/ran_multirast_5predictors-ecoregions_thinned_skeetch_binary.tif")
+
+# turn presence into polygon so we can calculate suitable area
+# first need to filter out presence cells from raster
+prediction_present_presence_skeetch <- prediction_binary_skeetch %>% 
+  filter(binary_mean == "presence")
+
+# vectorize raster to get a polygon around presences
+# need to turn raster into data.frame first
+prediction_present_presence_skeetch <- as.polygons(prediction_present_presence_skeetch)
+
+# now turn prediction_present_pres polygons into sf object
+prediction_present_skeetch_sf <- st_as_sf(prediction_present_presence_skeetch)
+
+crs(prediction_present_skeetch_sf) # WGS84
+
+# reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
+prediction_present_skeetch_area <- st_transform(prediction_present_skeetch_sf, "EPSG:3005")
+prediction_present_skeetch_area <- st_area(prediction_present_skeetch_sf) # 1.98e+9 m^2
+# convert from m^2 to km^2
+prediction_present_skeetch_area <- units::set_units(st_area(prediction_present_skeetch_sf), km^2) 
+# 1982 km^2 of suitable habitat
+
+# calculate area of Skeetchestn Territory:
+skeetch_sf <- read_sf("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
+plot(skeetch_sf)
+crs(skeetch_sf) # BC Albers, NAD83
+skeetch_area <- st_area(skeetch_sf) # 7e+09 m^2
+# convert from m^2 to km^2
+skeetch_area <- units::set_units(st_area(skeetch_sf), km^2)
+
+# proportion of suitable area relative to Skeetchestn Territory:
+proportion_suitable_present_skeetch <- prediction_present_skeetch_area/skeetch_area
+# 28.3%
 
 
 #### Visualizing the Contribution of Individual Variables ####
