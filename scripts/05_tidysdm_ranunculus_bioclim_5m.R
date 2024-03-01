@@ -264,37 +264,40 @@ ran_ensemble_metrics <- collect_metrics(ran_ensemble)
 
 
 # make predictions with the ensemble
-prediction_present <- predict_raster(ran_ensemble, climate_present_uncorr)
-ggplot() +
-  geom_spatraster(data = prediction_present, aes(fill = mean)) +
-  scale_fill_terrain_c() + # "c" for continuous variables
+# prediction_present <- predict_raster(ran_ensemble, climate_present_uncorr)
+# ggplot() +
+ # geom_spatraster(data = prediction_present, aes(fill = mean)) +
+ # scale_fill_terrain_c()# + # "c" for continuous variables
   # plot the presences used in the model
-  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
-
-
-## changed threshold to 0.7 as all models performed below 0.8
+  # geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 
 # subset the model to only use the best models, based on AUC
 # set threshold of 0.8 for AUC
 # take the median of the available model predictions (mean is the default)
-prediction_present_best <- predict_raster(ran_ensemble, climate_present_uncorr, 
-                                          metric_thresh = c("roc_auc", 0.7), 
-                                          fun= "median")
+prediction_present_best <- predict_raster(ran_ensemble, climate_present, 
+                                          metric_thresh = c("roc_auc", 0.8), 
+                                          fun= "mean")
 
 ggplot() +
-  geom_spatraster(data = prediction_present_best, aes(fill = median)) +
+  geom_spatraster(data = prediction_present_best, aes(fill = mean)) +
   scale_fill_terrain_c() + # c = continuous
-  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
+ # geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 # if plot doesn't change much, models are consistent
 # model gives us probability of occurrence
+# write to file
+writeRaster(prediction_present_best, filename = "outputs/ran_bioclim30s_predict_present_best.tif")
 
+# Binary predictions
+# May need to clear unused R memory first so there's enough RAM
+  
+  
 # can convert to binary predictions (present vs absence)
 ran_ensemble_binary <- calib_class_thresh(ran_ensemble, 
                                           class_thresh = "tss_max"
                                           )
 
 prediction_present_binary <- predict_raster(ran_ensemble_binary, 
-                                            climate_present_uncorr, 
+                                            climate_present, 
                                             type = "class", 
                                             class_thresh = c("tss_max")
                                             )
@@ -309,9 +312,7 @@ ggplot() +
 prediction_present_presence <- prediction_present_binary %>% 
   filter(binary_mean == "presence")
 
-# repeat for absences? May not be entirely useful information
-
-# vectorize raster to get a polygon around presences
+# vectorize raster to get polygons around presences
 # need to turn raster into data.frame first
 prediction_present_presence <- as.polygons(prediction_present_presence)
 
@@ -322,10 +323,8 @@ crs(prediction_present_sf) # WGS84
 
 # reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
 prediction_present_area <- st_transform(prediction_present_sf, "EPSG:3005")
-prediction_present_area <- st_set_crs(prediction_present_sf, "EPSG:3005")
 prediction_present_area <- st_area(prediction_present_sf) # 4.77e+11 m^2
 # convert from m^2 to km^2
-prediction_present_area <- st_area(prediction_present_sf)/1000000
 prediction_present_area <- units::set_units(st_area(prediction_present_sf), km^2) 
 # 476 938 km^2 of suitable habitat
 
@@ -333,16 +332,61 @@ prediction_present_area <- units::set_units(st_area(prediction_present_sf), km^2
 # read in sf object with new bounds:
 # reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
 na_bound_area <- st_transform(na_bound_sf, "EPSG:3005")
-na_bound_area <- st_set_crs(na_bound_sf, "EPSG:3005")
 # calculate study area, in m^2 (default)
 na_bound_area <- st_area(na_bound_sf) # 3.9e+12 m^2
 # convert from m^2 to km^2
-na_bound_area <- st_area(na_bound_sf)/1000000
 na_bound_area <- units::set_units(st_area(na_bound_sf), km^2) # 3 898 033  km^2
 
 # divide predicted present area by total study area to get proportion
 proportion_suitable_present <- prediction_present_area/na_bound_area
 # 12.2%
+
+
+# calculations for Skeetchestn
+
+# crop and mask total projection to Skeetchestn Territory
+prediction_binary_eqArea <- project(prediction_present_binary, "EPSG:3005")
+prediction_binary_skeetch <- crop(prediction_binary_eqArea, skeetch_vect_cropped)
+prediction_binary_skeetch <- mask(prediction_binary_skeetch, skeetch_vect_cropped)
+
+ggplot() +
+  geom_spatraster(data = prediction_binary_skeetch, aes(fill = binary_mean))
+# extent is too small, need to fix
+
+# write to file
+writeRaster(prediction_binary_skeetch, filename = "outputs/ran_multirast_5predictors-ecoregions_thinned_skeetch_binary.tif")
+
+# turn presence into polygon so we can calculate suitable area
+# first need to filter out presence cells from raster
+prediction_present_presence_skeetch <- prediction_binary_skeetch %>% 
+  filter(binary_mean == "presence")
+
+# vectorize raster to get a polygon around presences
+# need to turn raster into data.frame first
+prediction_present_presence_skeetch <- as.polygons(prediction_present_presence_skeetch)
+
+# now turn prediction_present_pres polygons into sf object
+prediction_present_skeetch_sf <- st_as_sf(prediction_present_presence_skeetch)
+crs(prediction_present_skeetch_sf) # BC Albers
+
+# calculate area
+prediction_present_skeetch_area <- st_area(prediction_present_skeetch_sf) # 1.98e+9 m^2
+# convert from m^2 to km^2
+prediction_present_skeetch_area <- units::set_units(st_area(prediction_present_skeetch_sf), km^2) 
+# 1982 km^2 of suitable habitat
+
+
+# calculate area of Skeetchestn Territory:
+skeetch_sf <- read_sf("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
+plot(skeetch_sf)
+crs(skeetch_sf) # BC Albers, NAD83
+skeetch_area <- st_area(skeetch_sf) # 7e+09 m^2
+# convert from m^2 to km^2
+skeetch_area <- units::set_units(st_area(skeetch_sf), km^2)
+
+# proportion of suitable area relative to Skeetchestn Territory:
+proportion_suitable_present_skeetch <- prediction_present_skeetch_area/skeetch_area
+# 28.3%
 
 
 #### Projecting to the Future ####
@@ -418,23 +462,17 @@ ggplot() +
 prediction_future_pres <- prediction_future_binary %>% 
   filter(binary_mean == "presence")
 
-# repeat for absences? May not be entirely useful information
-
 # vectorize raster to get a polygon around presences
-# need to turn raster into data.frame first
 prediction_future_pres <- as.polygons(prediction_future_pres)
 
 # now turn prediction_present_pres polygons into sf object
 prediction_future_sf <- st_as_sf(prediction_future_pres)
-
 crs(prediction_future_sf) # WGS84
 
 # reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
 prediction_future_area <- st_transform(prediction_future_sf, "EPSG:3005")
-prediction_future_area <- st_set_crs(prediction_future_sf, "EPSG:3005")
 prediction_future_area <- st_area(prediction_future_sf) # 1.8e+11m^2
 # convert from m^2 to km^2
-prediction_future_area <- st_area(prediction_future_sf)/1000000
 prediction_future_area <- units::set_units(st_area(prediction_future_sf), km^2) 
 # 26 674 km^2 of suitable habitat
 

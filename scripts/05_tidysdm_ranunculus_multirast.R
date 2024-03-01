@@ -27,8 +27,9 @@ na_bound_vect <- vect("data/processed/na_bound_vect.shp")
 na_bound_sf <- read_sf("data/processed/na_bound_sf_masked.shp")
 # Skeetchestn territory boundary vector for masking:
 skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
+skeetch_vect_cropped <- vect("data/processed/skeetch_vect_cropped_albers.shp")
 # reproject to WGS84
-skeetch_vect <- project(skeetch_vect, "EPSG:4326")
+# skeetch_vect_WGS84 <- project(skeetch_vect, "EPSG:4326")
 
 # read in Ranunculus glaberrimus occurrences:
 # cropped to proper study extent in 03_data_prep_ranunculus.R
@@ -286,8 +287,9 @@ ggplot() +
 writeRaster(prediction_present_best, filename = "outputs/ran_multirast_predict-present_5predictors-watersheds_thinned.tif")
 
 # attempt to plot prediction within skeetch territory
-prediction_present_best_skeetch <- crop(prediction_present_best, skeetch_vect)
-prediction_present_best_skeetch <- mask(prediction_present_best_skeetch, skeetch_vect)
+prediction_present_best_eqArea <- project(prediction_present_best, "EPSG:3005")
+prediction_present_best_skeetch <- crop(prediction_present_best_eqArea, skeetch_vect_Albers)
+prediction_present_best_skeetch <- mask(prediction_present_best_skeetch, skeetch_vect_Albers)
 plot(prediction_present_best_skeetch)
 # write to file
 writeRaster(prediction_present_best_skeetch, filename = "outputs/ran_multirast_predict-present_5predictors-watersheds_thinned_skeetch.tif")
@@ -315,6 +317,14 @@ ggplot() +
 
 # write to file
 writeRaster(prediction_present_binary, filename = "outputs/ran_multi_prediction_present_binary.tif")
+
+# start new script so new session can be started here?
+# read in binary raster file
+prediction_present_binary <- rast("outputs/ran_multi_prediction_present_binary.tif")
+
+
+# Suitable Area Calculations
+
 
 # turn presence into polygon so we can calculate suitable area
 # first need to filter out presence cells from raster
@@ -353,11 +363,13 @@ proportion_suitable_present <- prediction_present_area/na_bound_area
 # calculations for Skeetchestn
 
 # crop and mask total projection to Skeetchestn Territory
-prediction_binary_skeetch <- crop(prediction_present_binary, skeetch_vect)
-prediction_binary_skeetch <- mask(prediction_binary_skeetch, skeetch_vect)
+prediction_binary_eqArea <- project(prediction_present_binary, "EPSG:3005")
+prediction_binary_skeetch <- crop(prediction_binary_eqArea, skeetch_vect_cropped)
+prediction_binary_skeetch <- mask(prediction_binary_skeetch, skeetch_vect_cropped)
 
 ggplot() +
   geom_spatraster(data = prediction_binary_skeetch, aes(fill = binary_mean))
+  # extent is too small, need to fix
 
 # write to file
 writeRaster(prediction_binary_skeetch, filename = "outputs/ran_multirast_5predictors-ecoregions_thinned_skeetch_binary.tif")
@@ -373,15 +385,14 @@ prediction_present_presence_skeetch <- as.polygons(prediction_present_presence_s
 
 # now turn prediction_present_pres polygons into sf object
 prediction_present_skeetch_sf <- st_as_sf(prediction_present_presence_skeetch)
+crs(prediction_present_skeetch_sf) # BC Albers
 
-crs(prediction_present_skeetch_sf) # WGS84
-
-# reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
-prediction_present_skeetch_area <- st_transform(prediction_present_skeetch_sf, "EPSG:3005")
+# calculate area
 prediction_present_skeetch_area <- st_area(prediction_present_skeetch_sf) # 1.98e+9 m^2
 # convert from m^2 to km^2
 prediction_present_skeetch_area <- units::set_units(st_area(prediction_present_skeetch_sf), km^2) 
 # 1982 km^2 of suitable habitat
+
 
 # calculate area of Skeetchestn Territory:
 skeetch_sf <- read_sf("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
