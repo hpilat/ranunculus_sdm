@@ -71,9 +71,10 @@ ggplot() +
 # attempted 5km, filter_high_cor below wouldn't run, so try 10
 # 10 still didn't work, try 15?
 set.seed(1234567)
-ran_occ_thin_dist <- thin_by_dist(ran_occ_sf, dist_min = km2m(10))
+ran_occ_thin_dist <- thin_by_dist(ran_occ_sf, dist_min = km2m(15))
 nrow(ran_occ_thin_dist) # 1400 at 5km thinning, 1046 at 10km thinning
   # 1040 at 10km thinning with reduced spatial extent
+  # 827 at 15km thinning
   # 635 at 20km thinning
 
 ggplot() +
@@ -135,6 +136,7 @@ nrow(ran_pres_abs_pred) # 11 310, 130 rows removed with 10 km thinning and 5-50k
   # 7046 with 20 km thinning and 20-70 km buffer distance
   # 10 976 with 10 km thinning and 50-100 km buffer distance
   # 11 004 with 10 km thinning and 50-75 km buffer distance
+  # 8772 with 15 km thinning and 50-75 buffer distance
 
 # skipped non-overlapping distribution step in tutorial
 
@@ -161,8 +163,8 @@ predictors_uncorr
 
 # still lots of variables, and R session tends to abort when using more than 5 layers
 # select 5 layers thought to matter most:
-# FEB 29 ATTEMPT TO USE ECOREGIONS:
-predictors_uncorr <- c("soil_temp_5_15", "anth_biome", "lndcvr_na", "elevation_na", "watersheds")
+# FEB 29 ATTEMPT TO USE ECOREGIONS AND WATERSHEDS:
+predictors_uncorr <- c("soil_temp_5_15", "anth_biome", "lndcvr_na", "elevation_na", "ecoregions")
                                       
 
 # remove highly correlated predictors
@@ -258,11 +260,11 @@ ran_ensemble_metrics <-  collect_metrics(ran_ensemble)
 # default is taking the mean of the predictions from each model
 # line below uses over 10GB of RAM
 # need to input uncorrelated predictor data
-prediction_present_multirast <- predict_raster(ran_ensemble, predictors_multi_input)
+# prediction_present_multirast <- predict_raster(ran_ensemble, predictors_multi_input)
 
-ggplot() +
-  geom_spatraster(data = prediction_present_multirast, aes (fill = mean)) +
-  scale_fill_terrain_c()# + # c for continuous
+# ggplot() +
+  # geom_spatraster(data = prediction_present_multirast, aes (fill = mean)) +
+  # scale_fill_terrain_c()# + # c for continuous
   # geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 
 # subset the ensemble to only use the best models (AUC > 0.8)
@@ -281,14 +283,20 @@ ggplot() +
  #  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 
 # write to file
-writeRaster(prediction_present_best, filename = "outputs/ran_multirast_predict-present_ecoregions-watersheds.tif")
+writeRaster(prediction_present_best, filename = "outputs/ran_multirast_predict-present_5predictors-watersheds_thinned.tif")
 
 # attempt to plot prediction within skeetch territory
 prediction_present_best_skeetch <- crop(prediction_present_best, skeetch_vect)
 prediction_present_best_skeetch <- mask(prediction_present_best_skeetch, skeetch_vect)
 plot(prediction_present_best_skeetch)
 # write to file
-writeRaster(prediction_present_best_skeetch, filename = "outputs/ran_multirast_predict-present_ecoregions-watersheds_skeetch.tif")
+writeRaster(prediction_present_best_skeetch, filename = "outputs/ran_multirast_predict-present_5predictors-watersheds_thinned_skeetch.tif")
+
+
+# Binary Predictions
+# clear unused R memory before running the below code - apparently need as much RAM as possible
+
+
 
 # desirable to have binary predictions (presence/absence) rather than probability of occurrence
   # calibrate threshold used to convert probabilities into classes
@@ -304,6 +312,15 @@ prediction_present_binary <- predict_raster(ran_ensemble,
 ggplot() +
   geom_spatraster(data = prediction_present_binary, aes(fill = binary_mean)) +
   geom_sf(data= ran_pres_abs_pred %>% filter(class == "presence"))
+
+prediction_binary_skeetch <- crop(prediction_present_binary, skeetch_vect)
+prediction_binary_skeetch <- mask(prediction_binary_skeetch, skeetch_vect)
+
+ggplot() +
+  geom_spatraster(data = prediction_binary_skeetch, aes(fill = binary_mean))
+
+# write to file
+writeRaster(prediction_binary_skeetch, filename = "outputs/ran_multirast_5predictors-ecoregions_thinned_skeetch_binary.tif")
 
 
 # turn presence into polygon so we can calculate suitable area
@@ -321,10 +338,8 @@ crs(prediction_present_sf) # WGS84
 
 # reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
 prediction_present_area <- st_transform(prediction_present_sf, "EPSG:3005")
-prediction_present_area <- st_set_crs(prediction_present_sf, "EPSG:3005")
 prediction_present_area <- st_area(prediction_present_sf) # 6.53e+11 m^2
 # convert from m^2 to km^2
-prediction_present_area <- st_area(prediction_present_sf)/1000000
 prediction_present_area <- units::set_units(st_area(prediction_present_sf), km^2) 
 # 431 186 km^2 of suitable habitat
 
@@ -332,12 +347,10 @@ prediction_present_area <- units::set_units(st_area(prediction_present_sf), km^2
 # need to use masked sf object: na_bound_sf
 # reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
 na_bound_area <- st_transform(na_bound_sf, "EPSG:3005")
-na_bound_area <- st_set_crs(na_bound_sf, "EPSG:3005")
 # calculate study area, in m^2 (default)
 na_bound_area <- st_area(na_bound_sf) # 3.9e+12 m^2
 # convert from m^2 to km^2
-na_bound_area <- st_area(na_bound_sf)/1000000
-na_bound_area <- units::set_units(st_area(na_bound_sf), km^2) # 3 898 033  km^2
+na_bound_area <- units::set_units(st_area(na_bound_sf), km^2) # 3 805 323  km^2
 
 # divide predicted present area by total study area to get proportion
 proportion_suitable_present <- prediction_present_area/na_bound_area
@@ -412,6 +425,21 @@ anth_biome_data <- anth_biome_data %>%
 ggplot(anth_biome_data, aes(x = anth_biome, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
+# investigate the contribution of ecoregions:
+ecoregions_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-ecoregions, profile = vars(ecoregions)) %>% 
+  prep(training = ran_pres_abs_pred)
+
+ecoregions_data <- bake(ecoregions_prof, new_data = NULL)
+
+ecoregions_data <- ecoregions_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, ecoregions_data)$mean
+  )
+
+ggplot(ecoregions_data, aes(x = ecoregions, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
 # investigate the contribution of lndcvr_na:
 lndcvr_na_prof <- ran_recipe %>%  # recipe from above
   step_profile(-lndcvr_na, profile = vars(lndcvr_na)) %>% 
@@ -427,7 +455,24 @@ lndcvr_na_data <- lndcvr_na_data %>%
 ggplot(lndcvr_na_data, aes(x = lndcvr_na, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
-# investigate the contribution of bio02:
+
+# investigate the contribution of watersheds:
+watersheds_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-watersheds, profile = vars(watersheds)) %>% 
+  prep(training = ran_pres_abs_pred)
+
+watersheds_data <- bake(watersheds_prof, new_data = NULL)
+
+watersheds_data <- watersheds_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, watersheds_data)$mean
+  )
+
+ggplot(watersheds_data, aes(x = watersheds, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+
+# investigate the contribution of elevation:
 elevation_na_prof <- ran_recipe %>%  # recipe from above
   step_profile(-elevation_na, profile = vars(elevation_na)) %>% 
   prep(training = ran_pres_abs_pred)
@@ -472,12 +517,12 @@ set.seed(123) # make sure seed is set outside of the loop
 for (i_repeat in 1:3) {
   # thin the data
   ran_thin_rep <- thin_by_cell(ran_occ_sf, raster = predictors_multi)
-  ran_thin_rep <- thin_by_dist(ran_thin_rep, dist_min = 5000)
+  ran_thin_rep <- thin_by_dist(ran_thin_rep, dist_min = 15)
   # sample pseudo-absences
   ran_thin_rep <- sample_pseudoabs(ran_thin_rep,
                                    n = 3 * nrow(ran_thin_rep),
-                                   raster - predictors_multi,
-                                   method = c("dist_min", 50000)
+                                   raster = predictors_multi,
+                                   method = c("dist_disc", 50, 90)
   )
   # get climate
   ran_thin_rep <- ran_thin_rep %>%
@@ -526,7 +571,7 @@ ran_thin_rep_ens <- predict_raster(ran_thin_rep_ens,
                                    )
 
 ggplot() +
-  geom_spatraster(data = ran_thin_rep_ens, aes(fill = median)) +
+  geom_spatraster(data = ran_thin_rep_ens, aes(fill = mean)) +
   scale_fill_terrain_c()
 
 ran_thin_rep_ens
