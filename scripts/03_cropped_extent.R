@@ -59,7 +59,7 @@ ylims <- c(ext(ran_occ_sf)$ymin - 2, ext(ran_occ_sf)$ymax + 15)
 # xlims <- c(-130, -102.5)
 # ylims <- c(30, 70)
 
-# now crop and mask all layers:
+# now crop all layers:
 extent.test <- terra::ext(xlims, ylims)
 na_bound_rast <- crop(na_bound_rast, extent.test)
 na_bound_vect <- crop(na_bound_vect, extent.test)

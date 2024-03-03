@@ -20,11 +20,11 @@ library(overlapping)
 # extent cropped to smaller extent in 03_data_prep_ranunculus.R
 # read in extent objects:
 # raster to use as a basemap
-na_bound_rast <- rast("data/processed/na_bound_rast_new.tif")
+na_bound_rast <- rast("data/processed/na_bound_rast.tif")
 # vector object to use for masking and area calculations
 na_bound_vect <- vect("data/processed/na_bound_vect.shp")
 # sf object masked to study extent, for area calculations
-na_bound_sf <- read_sf("data/processed/na_bound_sf_masked.shp")
+na_bound_sf <- read_sf("data/processed/na_bound_sf.shp")
 # Skeetchestn territory boundary vector for masking:
 skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
 skeetch_vect_cropped <- vect("data/processed/skeetch_vect_cropped_albers.shp")
@@ -33,7 +33,11 @@ skeetch_vect_cropped <- vect("data/processed/skeetch_vect_cropped_albers.shp")
 
 # read in Ranunculus glaberrimus occurrences:
 # cropped to proper study extent in 03_data_prep_ranunculus.R
-ran_occ_sf <- st_read(dsn = "data/processed/ran_occ_sf.shp")
+ran_occ_vect <- vect("data/processed/ran_occ_sf.shp")
+# mask to study area (all occurrences outside bounds set to NA)
+ran_occ_vect <- mask(ran_occ_vect, na_bound_vect)
+# cast to sf object
+ran_occ_sf <- st_as_sf(ran_occ_vect)
 
 # read in multilayer raster with predictor data, created in
 # 03_data_prep_ranunculus
@@ -165,7 +169,7 @@ predictors_uncorr
 # still lots of variables, and R session tends to abort when using more than 5 layers
 # select 5 layers thought to matter most:
 # FEB 29 ATTEMPT TO USE ECOREGIONS AND WATERSHEDS:
-predictors_uncorr <- c("soil_temp_5_15", "anth_biome", "lndcvr_na", "elevation_na", "ecoregions")
+predictors_uncorr <- c("soil_temp_5_15", "anth_biome", "landcover", "elevation", "ecoregions")
                                       
 
 # remove highly correlated predictors
@@ -286,10 +290,10 @@ ggplot() +
 # write to file
 writeRaster(prediction_present_best, filename = "outputs/ran_multirast_predict-present_5predictors-watersheds_thinned.tif")
 
-# attempt to plot prediction within skeetch territory
+# plot prediction within Skeetchestn Territory
 prediction_present_best_eqArea <- project(prediction_present_best, "EPSG:3005")
-prediction_present_best_skeetch <- crop(prediction_present_best_eqArea, skeetch_vect_Albers)
-prediction_present_best_skeetch <- mask(prediction_present_best_skeetch, skeetch_vect_Albers)
+prediction_present_best_skeetch <- crop(prediction_present_best_eqArea, skeetch_vect)
+prediction_present_best_skeetch <- mask(prediction_present_best_skeetch, skeetch_vect)
 plot(prediction_present_best_skeetch)
 # write to file
 writeRaster(prediction_present_best_skeetch, filename = "outputs/ran_multirast_predict-present_5predictors-watersheds_thinned_skeetch.tif")
