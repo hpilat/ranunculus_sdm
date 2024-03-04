@@ -28,7 +28,8 @@ na_bound_rast <- rast("data/extents/na_bound_rast.tif")
 # import files (already downloaded in 01_data_download.R)
 # raw files are appended with _na or _global, cropped files are not
 ran_occ_vect <- vect("data/extents/ran_occ_sf.shp")
-worldclim_na <- rast("data/processed/worldclim_tiles_combined.tif")
+worldclim_present_na <- rast("data/processed/worldclim_tiles_combined.tif")
+worldclim_future_na <- rast("data/raw/wc2.1_30s_bioc_HadGEM3-GC31-LL_ssp126_2081-2100.tif")
 anth_biome_na <- rast("data/raw/anthromes_EqArea.tif")
 climate_zones_na <- vect("data/raw/North_America_Climate_Zones.shp")
 ecoregions_na <- vect("data/raw/na_terrestrial_ecoregions_v2_level_iii_shapefile/NA_Terrestrial_Ecoregions_v2_Level_III_Shapefile/NA_TerrestrialEcoregions_LIII/data/NA_Terrestrial_Ecoregions_v2_level3.shp")
@@ -63,20 +64,31 @@ writeVector(ran_occ_masked, "data/processed/ran_occ_masked.shp", overwrite = TRU
 # start with WorldClim data to get our desired resolution and dimensions for all
   # other rasters
 
-worldclim_na # CRS and resolution match what we need
+
+# Present Data:
+worldclim_present_na # CRS and resolution match what we need
 # crop the extent of the land mask to match our study's extent
-worldclim_cropped <- crop(worldclim_na, na_bound_vect)
+worldclim_present_cropped <- crop(worldclim_present_na, na_bound_vect)
 # mask to the study area polygon
-worldclim_masked <- mask(worldclim_cropped, na_bound_vect)
+worldclim_present_masked <- mask(worldclim_present_cropped, na_bound_vect)
 
 # write to file for reuse in 05_tidysdm_bioclim_30s.R
-writeRaster(worldclim_masked, filename = "data/processed/worldclim_masked.tif", overwrite = TRUE)
+writeRaster(worldclim_present_masked, filename = "data/processed/worldclim_present_masked.tif", overwrite = TRUE)
 
+
+# Future Data:
+
+worldclim_future_na # correct resolution and CRS, need to crop
+worldclim_future_cropped <- crop(worldclim_future_na, na_bound_vect)
+# now mask so values outside na_bound_vect are set to NA
+worldclim_future_masked <- mask(worldclim_future_cropped, na_bound_vect)
+# write to file for reuse in 05_tidysdm_bioclim_30s
+writeRaster(worldclim_future_masked, filename = "data/processed/worldclim_future_masked.tif", overwrite = TRUE)
 
 # now that we have a layer with our goal resolution and extent, 
   # can resample our empty raster (created in 03_cropped_extent.R) 
   # to have the correct resolution
-na_bound_rast <- resample(na_bound_rast, worldclim_masked)
+na_bound_rast <- resample(na_bound_rast, worldclim_present_masked)
 na_bound_rast
 # write to file
 writeRaster(na_bound_rast, filename = "data/extents/na_bound_rast.tif", overwrite = TRUE)

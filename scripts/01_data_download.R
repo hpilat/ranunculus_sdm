@@ -97,6 +97,13 @@ worldclim_tiles <- terra::merge(worldclim_1_2, worldclim_3_4, first = TRUE)
 writeRaster(worldclim_tiles, filename = "data/processed/worldclim_tiles_combined.tif")
 
 
+# Future Climate Data
+# note: 8.5 GB file
+# https://www.worldclim.org/data/cmip6/cmip6_clim30s.html#google_vignette
+worldclim_future_na <- rast("data/raw/wc2.1_30s_bioc_HadGEM3-GC31-LL_ssp126_2081-2100.tif")
+
+
+
 # Informed Predictor Data:
 
 

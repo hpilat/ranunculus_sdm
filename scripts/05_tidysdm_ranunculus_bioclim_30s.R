@@ -1,9 +1,10 @@
 # Following tidysdm tutorial, we input Ranunculus glaberrimus occurrence records 
   # and WorldClim predictors at 10 arcmin (?) resolution into the tidysdm pipeline
 # Please first run scripts in the following order: 
-  # 01_data_download_ranunculus.R
+  # 01_data_download.R
   # 02_continental_divide.Rmd
-  # 03_data_prep_ranunculus.R
+  # 03_cropped_extent.R
+  # 04_data_processing.R
 
 # dir.create("outputs/")
 
@@ -20,24 +21,29 @@ library(overlapping)
 # extent cropped to smaller extent in 03_data_prep_ranunculus.R
 # read in extent objects:
 # raster to use as a basemap
-na_bound_rast <- rast("data/processed/na_bound_rast_new.tif")
+na_bound_rast <- rast("data/processed/na_bound_rast.tif")
 # vector object to use for masking and area calculations
 na_bound_vect <- vect("data/processed/na_bound_vect.shp")
 # sf object masked to study extent, for area calculations
-na_bound_sf <- read_sf("data/processed/na_bound_sf_masked.shp")
+na_bound_sf <- read_sf("data/processed/na_bound_sf.shp")
 # Skeetchestn territory boundary vector for masking:
 skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
 skeetch_vect_cropped <- vect("data/processed/skeetch_vect_cropped_albers.shp")
 # reproject to WGS84
-skeetch_vect <- project(skeetch_vect, "EPSG:4326")
+# skeetch_vect_WGS84 <- project(skeetch_vect, "EPSG:4326")
 
 # read in Ranunculus glaberrimus occurrences:
 # cropped to proper study extent in 03_data_prep_ranunculus.R
-ran_occ_sf <- st_read(dsn = "data/processed/ran_occ_sf.shp")
+ran_occ_vect <- vect("data/processed/ran_occ_sf.shp")
+# mask to study area (all occurrences outside bounds set to NA)
+ran_occ_vect <- mask(ran_occ_vect, na_bound_vect)
+# cast to sf object
+ran_occ_sf <- st_as_sf(ran_occ_vect)
 
 # plot occurrences directly on raster with predictor variables
-# read in processed WorldClim raster
-climate_present <- rast("data/processed/worldclim_masked.tif")
+# read in processed WorldClim rasters
+climate_present <- rast("data/processed/worldclim_present_masked.tif")
+climate_future <- rast("data/processed/worldclim_future_masked.tif")
 
 # use tidyterra package for plotting so ggplot can be used with terra rasters
 # aes(fill = layer) refers to column name in na_bound_rast
@@ -370,19 +376,7 @@ proportion_suitable_present_skeetch <- prediction_present_skeetch_area/skeetch_a
 
 
 
-# full list of future projections from WorldClim:
-help("WorldClim_2.1")
-# ssp = Shared Socioeconomic Pathways, 126, 245, 370, 585 available
 
-# SSP 245, 2081-2100 (worst-case, furthest in the future)
-download_dataset("WorldClim_2.1_HadGEM3-GC31-LL_ssp126_0.5m")
-
-# see which times are available:
-get_time_ce_steps("WorldClim_2.1_HadGEM3-GC31-LL_ssp245_0.5m")
-# predict using 2090 (midpoint between 2081 and 2100)
-
-# check the available variables:
-get_vars_for_dataset("WorldClim_2.1_HadGEM3-GC31-LL_ssp245_10m")
 # all 19 bioclimatic variables, no altitude (because it doesn't change over time)
   # to use altitude, would have to copy it over from the present
   # but altitude not included in set of uncorrelated variables from earlier, 
@@ -395,14 +389,6 @@ get_vars_for_dataset("WorldClim_2.1_HadGEM3-GC31-LL_ssp245_10m")
 # select uncorrelated variables
 vars_uncorr_fut <- vars_uncorr[ !vars_uncorr == 'altitude']
 vars_uncorr_fut
-
-climate_future <- pastclim::region_slice(
-  time_ce = 2090, 
-  bio_variables = vars_uncorr_fut, # uncorrelated variables created previously
-  # need to find out how to deal with
-  data = "WorldClim_2.1_HadGEM3-GC31-LL_ssp245_10m", 
-  crop = na_bound #boundary polygon for study area
-)
 
 # need to add altitude layer from climate_present
 climate_future <- c(climate_future, climate_present$altitude)

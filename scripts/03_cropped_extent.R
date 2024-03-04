@@ -86,23 +86,25 @@ st_write(ran_occ_sf, dsn = "data/extents/ran_occ_sf.shp", append = FALSE)
 
 # SNRC provided shapefile of Skeetchestn traditional territory
 # Read in Skeetchestn territory shapefile
-skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
-plot(skeetch_vect)
-skeetch_vect # BC Albers, NAD83
+skeetch_sf <- st_read("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
+plot(skeetch_sf)
 
 # maps from tidysdm were cutting off part of the Territory boundary
 # need to expand extent by a small amount
-skeetch_vect_WGS84<- project(skeetch_vect, "EPSG:4326")
-skeetch_vect_WGS84 # extent is -121.4859, -120.2995, 50.38478, 51.48137
+ # extent is -121.4859, -120.2995, 50.38478, 51.48137
 # expand extent by 0.5 degrees in each direction
-xlims_skeetch <- c(ext(skeetch_vect_WGS84)$xmin - 0.5, ext(skeetch_vect_WGS84)$xmax + 0.5)
-ylims_skeetch <- c(ext(skeetch_vect_WGS84)$ymin - 0.5, ext(skeetch_vect_WGS84)$ymax + 0.5)
+xlims_skeetch <- c(skeetch_sf$xmin - 0.5, ext(skeetch_sf)$xmax + 0.5)
+ylims_skeetch <- c(ext(skeetch_sf)$ymin - 0.5, ext(skeetch_sf)$ymax + 0.5)
+
 extent_skeetch <- terra::ext(xlims_skeetch, ylims_skeetch)
+# error, expected 4 numbers
+# try inputting bounding box directly
+extent_skeetch <- terra::ext()
 skeetch_vect_extended <- crop(skeetch_vect_WGS84, extent_skeetch)
 skeetch_vect_extended
 
 # transform back to Albers for use in area calculations
-skeetch_vect_cropped <- project(skeetch_vect_cropped, "EPSG:3005")
+skeetch_vect_cropped <- project(skeetch_vect_extended, "EPSG:3005")
 plot(skeetch_vect_cropped)
 # write to file for reuse
 writeVector(skeetch_vect_cropped, filename = "data/processed/skeetch_vect_cropped_albers.shp", overwrite = TRUE)
