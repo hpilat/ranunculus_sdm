@@ -107,4 +107,4 @@ skeetch_vect_extended
 skeetch_vect_cropped <- project(skeetch_vect_extended, "EPSG:3005")
 plot(skeetch_vect_cropped)
 # write to file for reuse
-writeVector(skeetch_vect_cropped, filename = "data/processed/skeetch_vect_cropped_albers.shp", overwrite = TRUE)
+writeVector(skeetch_vect_cropped, filename = "data/extents/skeetch_vect_cropped_albers.shp", overwrite = TRUE)
