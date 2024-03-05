@@ -20,14 +20,14 @@ library(overlapping)
 # extent cropped to smaller extent in 03_data_prep_ranunculus.R
 # read in extent objects:
 # raster to use as a basemap
-na_bound_rast <- rast("data/processed/na_bound_rast.tif")
+na_bound_rast <- rast("data/extents/na_bound_rast.tif")
 # vector object to use for masking and area calculations
-na_bound_vect <- vect("data/processed/na_bound_vect.shp")
+na_bound_vect <- vect("data/extents/na_bound_vect.shp")
 # sf object masked to study extent, for area calculations
-na_bound_sf <- read_sf("data/processed/na_bound_sf.shp")
+na_bound_sf <- read_sf("data/extents/na_bound_sf.shp")
 # Skeetchestn territory boundary vector for masking:
 skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
-skeetch_vect_cropped <- vect("data/processed/skeetch_vect_cropped_albers.shp")
+skeetch_vect_cropped <- vect("data/extents/skeetch_vect_cropped_albers.shp")
 # reproject to WGS84
 # skeetch_vect_WGS84 <- project(skeetch_vect, "EPSG:4326")
 
