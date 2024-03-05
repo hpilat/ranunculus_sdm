@@ -1,75 +1,9 @@
-Loading history...
-
-
-Jason Pither
-12:15 PM
-do you have a folder anywhere that holds the truly raw geospatial files?  i.e. before any changes like nodata values etc...? I've downloaded the landcover... it's an integer / thematic datatype (function datatype in terra), and nodata value is set to 128...
-Only visible to you
-
-Slackbot
-12:29 PM
-That looks like a OneDrive and SharePoint link. Would you like to install the OneDrive and SharePoint app from the Slack App Directory?
-  OneDrive and SharePoint
-Search, share and preview your OneDrive & SharePoint Online files right from Slack
-Learn more
-
-
-Hannah Pilat
-12:29 PM
-If you've already got the landcover file downloaded, definitely skip that because it's the largest file https://ubcca-my.sharepoint.com/:f:/g/personal/hpilat_student_ubc_ca/ErXQxTttz6NDoNJC3A45vRABNM7iP19_fBHz4eW9lOdc8Q?email=jason.pither%40ubc.ca&e=0CqAfD
-
-
-Jason Pither
-12:33 PM
-do you have time for a quick chat?
-  
-  
-  Hannah Pilat
-12:43 PM
-Yep, zoom?
-  
-  
-  Jason Pither
-12:43 PM
-https://ubc.zoom.us/j/61062400491?pwd=T0VXYnB3WmRxaEE4clB6YUptVi9VZz09
-
-
-Dave Ensing
-4:41 PM
-Hi Jason, for transparency, Hannah and I have just been bashing around the plan for this spring - I will extend Hannah at her current rate (might go up a little to step 3 on MSc student pay scale) through the end of June. She will spend most of April and May with SNRC supporting our collective project(s) and preparing for defense, and then have June to wrap things up at UBCO / AAFC. Accommodation (and mouse traps) at SNRC will be provided for April and May. As discussed yesterday, we anticipate presentations/knowledge sharing at Skeetchestn, AAFC, CSEE and at her defense at UBCO. Sound good?
-  
-  
-  Jason Pither
-5:24 PM
-all sounds amazing. thanks 
-@Dave Ensing
-!  really happy this is all coming together!
-  
-  
-  Dave Ensing
-5:25 PM
-Great! I'm def excited about it.
-
-
-Jason Pither
-  12:14 PM
-good morning, apologies for the weekend message - no need to read right away, i just wanted to share the script i've completed for downloading the raw geospatial data from source.  This R script would be sourced in a chunk in the main markdown script.  DON'T run the script unless you wish to start downloading >20GB of data!  I spent time on this because it's about freaking time that I created a best-practice, re-usable script with proper checks for downloading data from source!
-  attached.
-This file was not found.
-
-
-Jason Pither
-12:22 PM
-oops, here's the correct file!
-01_download_data.R
- 
-## 
 ## This is an example of an R script that would be sourced from the main
 ## markdown script.
 ##
 ## Script: 01_download_data.R
-## This is script 01 of XX
-##
+## This is script 01 of 06 
+
 ## Purpose: To download and store raw data files that can be downloaded 
 ## directly from source from within R.  
 ​
