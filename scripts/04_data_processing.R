@@ -72,6 +72,12 @@ worldclim_present_cropped <- crop(worldclim_present_na, na_bound_vect)
 # mask to the study area polygon
 worldclim_present_masked <- mask(worldclim_present_cropped, na_bound_vect)
 
+# change layer names to simpler name
+names(worldclim_present_masked) <- c("bio01", "bio02", "bio03", "bio04", "bio05",
+                                     "bio06", "bio07", "bio08", "bio09", "bio10", 
+                                     "bio11", "bio12", "bio13", "bio14", "bio15", 
+                                     "bio16", "bio17", "bio18", "bio19")
+
 # write to file for reuse in 05_tidysdm_bioclim_30s.R
 writeRaster(worldclim_present_masked, filename = "data/processed/worldclim_present_masked.tif", overwrite = TRUE)
 
@@ -82,6 +88,13 @@ worldclim_future_na # correct resolution and CRS, need to crop
 worldclim_future_cropped <- crop(worldclim_future_na, na_bound_vect)
 # now mask so values outside na_bound_vect are set to NA
 worldclim_future_masked <- mask(worldclim_future_cropped, na_bound_vect)
+
+# change layer names to simpler names, and to match present climate dataset (above)
+names(worldclim_future_masked) <- c("bio01", "bio02", "bio03", "bio04", "bio05",
+                                     "bio06", "bio07", "bio08", "bio09", "bio10", 
+                                     "bio11", "bio12", "bio13", "bio14", "bio15", 
+                                     "bio16", "bio17", "bio18", "bio19")
+
 # write to file for reuse in 05_tidysdm_bioclim_30s
 writeRaster(worldclim_future_masked, filename = "data/processed/worldclim_future_masked.tif", overwrite = TRUE)
 
