@@ -8,7 +8,6 @@
 
 # dir.create("outputs/")
 
-
 library(tidysdm)
 library(tidyterra)
 library(sf)
@@ -53,6 +52,7 @@ ggplot()+
 
 
 # thin the occurrences to have one per cell in the na_bound_rast raster
+
 set.seed(1234567)
 ran_occ_thin_cell <- thin_by_cell(ran_occ_sf, raster = na_bound_rast)
 nrow(ran_occ_thin_cell) # 2462
@@ -159,7 +159,7 @@ suggested_vars <- c("bio06",
 ran_pres_abs_pred <- ran_pres_abs_pred %>% dplyr::select(dplyr::all_of(c(suggested_vars, "class")))
 ran_pres_abs_pred
 
-# now subset the uncorrelated and selected predictors within climate_present
+# now subset the uncorrelated and selected predictors from climate_present
 climate_present_selected <- climate_present[[suggested_vars]]
 
 
@@ -221,12 +221,12 @@ model_metrics <- collect_metrics(ran_models)
 
 
 
+
 ## Ensemble ##
 
 
 
-# use AUC as metric to choose best
-  # random forest and boosted tree models
+# use AUC as metric to choose best random forest and boosted tree models
 # when adding members to an ensemble, they are auto-fitted to the full
   # training dataset and therefore ready to make predictions
 ran_ensemble <- simple_ensemble() %>% 
@@ -246,17 +246,17 @@ ran_ensemble_metrics <- collect_metrics(ran_ensemble)
 # make predictions with the ensemble
 # prediction_present <- predict_raster(ran_ensemble, climate_present_uncorr)
 # ggplot() +
- #  geom_spatraster(data = prediction_present, aes(fill = mean)) +
- #  scale_fill_terrain_c() + # "c" for continuous variables
-  # plot the presences used in the model
- #  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
+#  geom_spatraster(data = prediction_present, aes(fill = mean)) +
+#  scale_fill_terrain_c() + # "c" for continuous variables
+
 
 # subset the model to only use the best models, based on AUC
 # set threshold of 0.8 for AUC
 # take the median of the available model predictions (mean is the default)
-prediction_present_best <- predict_raster(ran_ensemble, climate_present, 
-                                           metric_thresh = c("roc_auc", 0.8), 
-                                           fun= "mean")
+prediction_present_best <- predict_raster(ran_ensemble, 
+                                          climate_present_selected, 
+                                          metric_thresh = c("roc_auc", 0.8), 
+                                          fun= "mean")
 
 ggplot() +
   geom_spatraster(data = prediction_present_best, aes(fill = mean)) +
@@ -266,14 +266,8 @@ ggplot() +
 # model gives us probability of occurrence
 
 # write to file
-writeRaster(prediction_present_best, filename = "outputs/ran_bioclim30s_predict-present_5-predictors_thinned.tif")
+writeRaster(prediction_present_best, filename = "outputs/ran_bioclim30s_predict-present.tif")
 
-# plot prediction within skeetch territory
-prediction_present_best_skeetch <- crop(prediction_present_best, skeetch_vect)
-prediction_present_best_skeetch <- mask(prediction_present_best_skeetch, skeetch_vect)
-plot(prediction_present_best_skeetch)
-# write to file
-writeRaster(prediction_present_best_skeetch, filename = "outputs/ran_bioclim30s_predict-present_5-predictors_thinned_skeetch.tif")
 
 # can convert to binary predictions (present vs absence)
 
@@ -289,11 +283,11 @@ prediction_present_binary
 
 # plot the binary map
 ggplot() +
-  geom_spatraster(data = prediction_present_binary, aes(fill = binary_mean)) +
-  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
+  geom_spatraster(data = prediction_present_binary, aes(fill = binary_mean)) # +
+  # geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 
 # write to file
-writeRaster(prediction_present_binary, filename = "outputs/ran_bioclim30s_predict-present-binary.tif")
+writeRaster(prediction_present_binary, filename = "outputs/ran_bioclim30s_predict-present-binary.tif", overwrite = TRUE)
 
 
 
@@ -302,52 +296,53 @@ writeRaster(prediction_present_binary, filename = "outputs/ran_bioclim30s_predic
 
 
 # all 19 bioclimatic variables, no altitude (because it doesn't change over time)
-  # to use altitude, would have to copy it over from the present
-  # but altitude not included in set of uncorrelated variables from earlier, 
-    # so don't include here
-
-
-# error in code chunk below: altitude not available for future predictions,
-  # but included in vars_uncorr - need to remove altitude then later paste the 
-  # values from climate_present into climate_future
-# select uncorrelated variables
-climate_future_uncorr <- climate_future[[predictors_uncorr]]
-climate_future_uncorr
+# select a subset of 5 uncorrelated predictors, using suggested_vars from before:
+climate_future_selected <- climate_future[[suggested_vars]]
+climate_future_selected
 
 # predict using the ensemble:
-prediction_future <- predict_raster(ran_ensemble, climate_future_uncorr)
+# prediction_future <- predict_raster(ran_ensemble, climate_future_selected)
+
+# ggplot() +
+ # geom_spatraster(data = prediction_future, aes(fill = mean)) +
+ # scale_fill_terrain_c()
+
+prediction_future_best <- predict_raster(ran_ensemble, 
+                                         climate_future_selected, 
+                                         metric_thresh = c("roc_auc", 0.8), 
+                                         fun= "mean")
 
 ggplot() +
-  geom_spatraster(data = prediction_future, aes(fill = mean)) +
+  geom_spatraster(data = prediction_future_best, aes(fill = mean)) +
   scale_fill_terrain_c()
 
 # write to file
-writeRaster(prediction_future, filename = "ran_predict_future_bioclim30s.tif")
+writeRaster(prediction_future_best, filename = "outputs/ran_predict_future_bioclim30s.tif", overwrite = TRUE)
 
-# read in file from above
-prediction_future <- rast("ran_predict_future_bioclim30s.tif")
+
 
 # convert predictions to binary (presence/absence)
 # if plot doesn't change much, models are consistent
 # model gives us probability of occurrence
 # can convert to binary predictions (present vs absence)
 
+
 ran_ensemble_binary <- calib_class_thresh(ran_ensemble, 
                                           class_thresh = "tss_max"
                                           )
 
 prediction_future_binary <- predict_raster(ran_ensemble_binary, 
-                                            climate_future_uncorr, 
-                                            type = "class", 
-                                            class_thresh = c("tss_max"))
+                                           climate_future_selected, 
+                                           type = "class", 
+                                           class_thresh = c("tss_max"))
 prediction_future_binary
 
 ggplot() +
-  geom_spatraster(data = prediction_future_binary, aes(fill = binary_mean)) +
-  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
+  geom_spatraster(data = prediction_future_binary, aes(fill = binary_mean)) #+
+ # geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 
 # write to file
-writeRaster(prediction_future_binary, filename = "outputs/ran_bioclim30s_predict-future-binary.tif")
+writeRaster(prediction_future_binary, filename = "outputs/ran_bioclim30s_predict-future-binary.tif", overwrite = TRUE)
 
 
 
@@ -363,6 +358,10 @@ explainer_ran_ensemble <- explain_tidysdm(ran_ensemble)
 vip_ensemble <- model_parts(explainer = explainer_ran_ensemble, 
                             type = "variable_importance")
 vip_ensemble
+plot(vip_ensemble)
+
+
+# Marginal Response Curves
 
 
 # marginal response curves can show the effect of a variable while keeping
@@ -522,6 +521,13 @@ altitude_data <- altitude_data %>%
 
 ggplot(altitude_data, aes(x = altitude, y = pred)) +
   geom_point(alpha = .5, cex = 1)
+
+
+
+# Partial Dependency Plots
+# edit below to include our object names:
+pdp_bio05 <- model_profile(explainer_lacerta_ens, N = 500, variables = "bio05")
+plot(pdp_bio05)
 
 
 

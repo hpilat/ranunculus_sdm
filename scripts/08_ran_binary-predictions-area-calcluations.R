@@ -17,7 +17,6 @@ library(sf)
 informed_present_binary <- rast("outputs/ran_multi_prediction_present_binary.tif")
 bioclim30s_present_binary <- rast("outputs/ran_bioclim30s_predict-present-binary.tif")
 bioclim30s_future_binary <- rast("outputs/ran_bioclim30s_predict-future-binary.tif")
-na_bound_vect <- vect("data/processed/na_bound_vect.shp")
 
 # Extent objects:
 
@@ -29,7 +28,7 @@ na_bound_sf <- read_sf("data/extents/na_bound_sf.shp")
 skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
 skeetch_vect_cropped <- vect("data/extents/skeetch_vect_cropped_albers.shp")
 # reproject to WGS84
-# skeetch_vect_WGS84 <- project(skeetch_vect, "EPSG:4326")
+skeetch_vect_WGS84 <- project(skeetch_vect, "EPSG:4326")
 
 
 
@@ -141,7 +140,7 @@ bioclim30s_present_area <- st_transform(bioclim30s_present_sf, "EPSG:3005")
 bioclim30s_present_area <- st_area(bioclim30s_present_sf) # 1.48e+12 m^2
 # convert from m^2 to km^2
 bioclim30s_present_area <- units::set_units(st_area(bioclim30s_present_sf), km^2) 
-# 1 478 904 km^2 of suitable habitat
+# 1 259 171 km^2 of suitable habitat
 
 # Overall study extent:
 # reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
@@ -218,25 +217,24 @@ crs(prediction_future_sf) # WGS84
 
 # reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
 prediction_future_area <- st_transform(prediction_future_sf, "EPSG:3005")
-prediction_future_area <- st_set_crs(prediction_future_sf, "EPSG:3005")
 prediction_future_area <- st_area(prediction_future_sf) # 1.15e+12 m^2
 # convert from m^2 to km^2
-prediction_future_area <- st_area(prediction_future_sf)/1000000
 prediction_future_area <- units::set_units(st_area(prediction_future_sf), km^2) 
-# 1 150 023 km^2 of suitable habitat
+# 958 305 km^2 of suitable habitat
 
 # divide predicted present area by total study area to get proportion
 proportion_suitable_future <- prediction_future_area/na_bound_area
 
 # now calculate difference between suitable habitat in the present and 2081-2100
 # first need to convert area from class "units" to numeric
-prediction_present_area_num <- as.numeric(prediction_present_area)
+bioclim30s_present_area_num <- as.numeric(bioclim30s_present_area)
 prediction_future_area_num <- as.numeric(prediction_future_area)
-change_area_present_to_2100 <- prediction_future_area_num - prediction_present_area_num
-# -328 881.059 km^2 change in suitable habitat
+change_area_present_to_2100 <- prediction_future_area_num - bioclim30s_present_area_num
+# -300 865.41617323 km^2 change in suitable habitat
 
-# proportion changed:
-proportion_change <- proportion_suitable_future/proportion_suitable_present
+# percent change:
+percent_change <- (change_area_present_to_2100/prediction_future_area_num)* 100
+# 31.395566... % decrease in suitable habitat??
 
 
 # calculations for Skeetchestn

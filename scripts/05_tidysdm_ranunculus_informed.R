@@ -1,9 +1,10 @@
 # Following tidysdm tutorial, we input Ranunculus glaberrimus occurrence records 
   # and informed predictors into the tidysdm pipeline
 # Please first run scripts in the following order: 
-  # 01_data_download_ranunculus.R
+  # 01_data_download.R
   # 02_continental_divide.Rmd
-  # 03_data_prep_ranunculus.R
+  # 03_cropped_extent.R
+  # 04_data_processing.R
       
 # dir.create("outputs/")
 
@@ -25,11 +26,6 @@ na_bound_rast <- rast("data/extents/na_bound_rast.tif")
 na_bound_vect <- vect("data/extents/na_bound_vect.shp")
 # sf object masked to study extent, for area calculations
 na_bound_sf <- read_sf("data/extents/na_bound_sf.shp")
-# Skeetchestn territory boundary vector for masking:
-skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
-skeetch_vect_cropped <- vect("data/extents/skeetch_vect_cropped_albers.shp")
-# reproject to WGS84
-# skeetch_vect_WGS84 <- project(skeetch_vect, "EPSG:4326")
 
 # read in Ranunculus glaberrimus occurrences:
 # cropped to proper study extent in 03_data_prep_ranunculus.R
