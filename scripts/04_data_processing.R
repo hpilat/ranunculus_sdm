@@ -28,7 +28,7 @@ na_bound_rast <- rast("data/extents/na_bound_rast.tif")
 # import files (already downloaded in 01_data_download.R)
 # raw files are appended with _na or _global, cropped files are not
 ran_occ_vect <- vect("data/extents/ran_occ_sf.shp")
-worldclim_present_na <- rast("data/processed/worldclim_tiles_combined.tif")
+worldclim_present_na <- rast("data/processed/worldclim_present_na.tif")
 worldclim_future_na <- rast("data/raw/wc2.1_30s_bioc_HadGEM3-GC31-LL_ssp126_2081-2100.tif")
 anth_biome_na <- rast("data/raw/anthromes_EqArea.tif")
 climate_zones_na <- vect("data/raw/North_America_Climate_Zones.shp")
@@ -66,17 +66,96 @@ writeVector(ran_occ_masked, "data/processed/ran_occ_masked.shp", overwrite = TRU
 
 
 # Present Data:
-worldclim_present_na # CRS and resolution match what we need
-# crop the extent of the land mask to match our study's extent
-worldclim_present_cropped <- crop(worldclim_present_na, na_bound_vect)
+
+worldclim_present_na_bio01 <- rast("data/raw/wc2.1_30s_bio_1.tif")
+worldclim_present_bio01 <- crop(worldclim_present_na_bio01, na_bound_vect)
+
+worldclim_present_na_bio02 <- rast("data/raw/wc2.1_30s_bio_2.tif")
+worldclim_present_bio02 <- crop(worldclim_present_na_bio02, na_bound_vect)
+
+worldclim_present_na_bio03 <- rast("data/raw/wc2.1_30s_bio_3.tif")
+worldclim_present_bio03 <- crop(worldclim_present_na_bio03, na_bound_vect)
+
+worldclim_present_na_bio04 <- rast("data/raw/wc2.1_30s_bio_4.tif")
+worldclim_present_bio04 <- crop(worldclim_present_na_bio04, na_bound_vect)
+
+worldclim_present_na_bio05 <- rast("data/raw/wc2.1_30s_bio_5.tif")
+worldclim_present_bio05 <- crop(worldclim_present_na_bio05, na_bound_vect)
+
+worldclim_present_na_bio06 <- rast("data/raw/wc2.1_30s_bio_6.tif")
+worldclim_present_bio06 <- crop(worldclim_present_na_bio06, na_bound_vect)
+
+worldclim_present_na_bio07 <- rast("data/raw/wc2.1_30s_bio_7.tif")
+worldclim_present_bio07 <- crop(worldclim_present_na_bio07, na_bound_vect)
+
+worldclim_present_na_bio08 <- rast("data/raw/wc2.1_30s_bio_8.tif")
+worldclim_present_bio08 <- crop(worldclim_present_na_bio08, na_bound_vect)
+
+worldclim_present_na_bio09 <- rast("data/raw/wc2.1_30s_bio_9.tif")
+worldclim_present_bio09 <- crop(worldclim_present_na_bio09, na_bound_vect)
+
+worldclim_present_na_bio10 <- rast("data/raw/wc2.1_30s_bio_10.tif")
+worldclim_present_bio10 <- crop(worldclim_present_na_bio10, na_bound_vect)
+
+worldclim_present_na_bio11 <- rast("data/raw/wc2.1_30s_bio_11.tif")
+worldclim_present_bio11 <- crop(worldclim_present_na_bio11, na_bound_vect)
+
+worldclim_present_na_bio12 <- rast("data/raw/wc2.1_30s_bio_12.tif")
+worldclim_present_bio12 <- crop(worldclim_present_na_bio12, na_bound_vect)
+
+worldclim_present_na_bio13 <- rast("data/raw/wc2.1_30s_bio_13.tif")
+worldclim_present_bio13 <- crop(worldclim_present_na_bio13, na_bound_vect)
+
+worldclim_present_na_bio14 <- rast("data/raw/wc2.1_30s_bio_14.tif")
+worldclim_present_bio14 <- crop(worldclim_present_na_bio14, na_bound_vect)
+
+worldclim_present_na_bio15 <- rast("data/raw/wc2.1_30s_bio_15.tif")
+worldclim_present_bio15 <- crop(worldclim_present_na_bio15, na_bound_vect)
+
+worldclim_present_na_bio16 <- rast("data/raw/wc2.1_30s_bio_16.tif")
+worldclim_present_bio16 <- crop(worldclim_present_na_bio16, na_bound_vect)
+
+worldclim_present_na_bio17 <- rast("data/raw/wc2.1_30s_bio_17.tif")
+worldclim_present_bio17 <- crop(worldclim_present_na_bio17, na_bound_vect)
+
+worldclim_present_na_bio18 <- rast("data/raw/wc2.1_30s_bio_18.tif")
+worldclim_present_bio18 <- crop(worldclim_present_na_bio18, na_bound_vect)
+
+worldclim_present_na_bio19 <- rast("data/raw/wc2.1_30s_bio_19.tif")
+worldclim_present_bio19 <- crop(worldclim_present_na_bio19, na_bound_vect)
+
+# create a multilayer raster
+worldclim_present <- c(worldclim_present_bio01,
+                          worldclim_present_bio02,
+                          worldclim_present_bio03,
+                          worldclim_present_bio04,
+                          worldclim_present_bio05,
+                          worldclim_present_bio06,
+                          worldclim_present_bio07,
+                          worldclim_present_bio08,
+                          worldclim_present_bio09,
+                          worldclim_present_bio10,
+                          worldclim_present_bio11,
+                          worldclim_present_bio12,
+                          worldclim_present_bio13,
+                          worldclim_present_bio14,
+                          worldclim_present_bio15,
+                          worldclim_present_bio16,
+                          worldclim_present_bio17,
+                          worldclim_present_bio18,
+                          worldclim_present_bio19)
+
+
+worldclim_present # CRS and resolution match what we need
 # mask to the study area polygon
-worldclim_present_masked <- mask(worldclim_present_cropped, na_bound_vect)
+worldclim_present_masked <- mask(worldclim_present, na_bound_vect)
 
 # change layer names to simpler name
 names(worldclim_present_masked) <- c("bio01", "bio02", "bio03", "bio04", "bio05",
                                      "bio06", "bio07", "bio08", "bio09", "bio10", 
                                      "bio11", "bio12", "bio13", "bio14", "bio15", 
                                      "bio16", "bio17", "bio18", "bio19")
+worldclim_present_masked
 
 # write to file for reuse in 05_tidysdm_bioclim_30s.R
 writeRaster(worldclim_present_masked, filename = "data/processed/worldclim_present_masked.tif", overwrite = TRUE)
