@@ -39,10 +39,6 @@ ran_occ_sf <- st_as_sf(ran_occ_vect)
 # 03_data_prep_ranunculus
 predictors_multi <- rast("data/processed/predictors_multi.tif")
 
-# mask the multiraster to the extent (all values outside na_bound set to NA)
-predictors_multi <- crop(predictors_multi, na_bound_vect)
-predictors_multi <- mask(predictors_multi, na_bound_vect)
-
 
 # plot occurrences directly on raster with predictor variables
 
@@ -165,13 +161,13 @@ predictors_uncorr
 # still lots of variables, and R session tends to abort when using more than 5 layers
 # select 5 layers thought to matter most:
 # FEB 29 ATTEMPT TO USE ECOREGIONS AND WATERSHEDS:
-predictors_uncorr <- c("soil_temp_5_15", "anth_biome", "landcover", "elevation", "ecoregions")
-                                      
+# predictors_uncorr <- c("soil_temp_5_15", "anth_biome", "landcover", "elevation", "ecoregions")
 
 # remove highly correlated predictors
 # here is where the "class" column gets dropped, which messes up recipe below
   # need to retain class column (not in original tutorial code)
 ran_pres_abs_pred <- ran_pres_abs_pred %>% dplyr::select(dplyr::all_of(c(predictors_uncorr, "class")))
+ran_pres_abs_pred
 
 # now subset the uncorrelated predictors within the multiraster
 predictors_multi_input <- predictors_multi[[predictors_uncorr]]
