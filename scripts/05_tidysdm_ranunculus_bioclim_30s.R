@@ -585,5 +585,6 @@ ran_thin_rep_ens <- predict_raster(ran_thin_rep_ens,
 
 ggplot() +
   geom_spatraster(data = ran_thin_rep_ens, aes(fill = median)) +
-  scale_fill_terrain_c()
+  scale_fill_terrain_c() +
+  labs(title = "Ranunculus Prediction Sensitivity", subtitle = "Bioclim Model", xlab = "Longitude", ylab = "Latitude")
 # convert to binary and calculate area?
