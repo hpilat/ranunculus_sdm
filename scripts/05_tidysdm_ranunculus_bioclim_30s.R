@@ -1,5 +1,5 @@
 # Following tidysdm tutorial, we input Ranunculus glaberrimus occurrence records 
-  # and WorldClim predictors at 10 arcmin (?) resolution into the tidysdm pipeline
+  # and WorldClim predictors at 30 arcsec resolution into the tidysdm pipeline
 # Please first run scripts in the following order: 
   # 01_data_download.R
   # 02_continental_divide.Rmd
@@ -144,14 +144,6 @@ pairs(predictors_sample)
 predictors_uncorr <- filter_high_cor(predictors_sample, cutoff = 0.8, 
                                      verbose = TRUE, names = TRUE, to_keep = NULL)
 predictors_uncorr
-
-# 9 uncorrelated variables - need to further filter down to 5 in order for projections to run
-# more than 5 layers = too much RAM required at this resolution
-# suggested_vars <- c("bio06",
-                  #  "bio12",
-                  #  "bio10",
-                  #  "bio19",
-                  #  "bio07")
 
 # remove highly correlated predictors
 # here is where the "class" column gets dropped, which messes up recipe below
@@ -369,68 +361,8 @@ plot(vip_ensemble)
 # use step_profile() to create a new recipe for generating a dataset to make 
   # the marginal prediction
 # uncorrelated predictors:
-# bio 07, 09, 05, 19, 02, 18, 14, 08, 15, altitude
-# there must be a way to loop through this?
+predictors_uncorr
 
-# investigate the contribution of bio07:
-bio07_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-bio07, profile = vars(bio07)) %>% 
-  prep(training = ran_occ_thin)
-
-bio07_data <- bake(bio07_prof, new_data = NULL)
-
-bio07_data <- bio07_data %>% 
-  mutate(
-    pred = predict(ran_ensemble, bio07_data)$mean
-  )
-
-ggplot(bio07_data, aes(x = bio07, y = pred)) +
-  geom_point(alpha = .5, cex = 1)
-
-# investigate the contribution of bio09:
-bio09_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-bio09, profile = vars(bio09)) %>% 
-  prep(training = ran_occ_thin)
-
-bio09_data <- bake(bio09_prof, new_data = NULL)
-
-bio09_data <- bio09_data %>% 
-  mutate(
-    pred = predict(ran_ensemble, bio09_data)$mean
-  )
-
-ggplot(bio09_data, aes(x = bio09, y = pred)) +
-  geom_point(alpha = .5, cex = 1)
-
-# investigate the contribution of bio05:
-bio05_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-bio05, profile = vars(bio05)) %>% 
-  prep(training = ran_occ_thin)
-
-bio05_data <- bake(bio05_prof, new_data = NULL)
-
-bio05_data <- bio05_data %>% 
-  mutate(
-    pred = predict(ran_ensemble, bio05_data)$mean
-  )
-
-ggplot(bio05_data, aes(x = bio05, y = pred)) +
-  geom_point(alpha = .5, cex = 1)
-
-# investigate the contribution of bio19:
-bio19_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-bio19, profile = vars(bio19)) %>% 
-  prep(training = ran_occ_thin)
-
-bio19_data <- bake(bio19_prof, new_data = NULL)
-
-bio19_data <- bio19_data %>% 
-  mutate(
-    pred = predict(ran_ensemble, bio19_data)$mean
-  )
-
-ggplot(bio19_data, aes(x = bio19, y = pred)) +
-  geom_point(alpha = .5, cex = 1)
 
 # investigate the contribution of bio02:
 bio02_prof <- ran_recipe %>%  # recipe from above
@@ -447,35 +379,38 @@ bio02_data <- bio02_data %>%
 ggplot(bio02_data, aes(x = bio02, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
-# investigate the contribution of bio18:
-bio18_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-bio05, profile = vars(bio18)) %>% 
+
+# investigate the contribution of bio07:
+bio03_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio03, profile = vars(bio03)) %>% 
   prep(training = ran_occ_thin)
 
-bio18_data <- bake(bio18_prof, new_data = NULL)
+bio03_data <- bake(bio03_prof, new_data = NULL)
 
-bio18_data <- bio18_data %>% 
+bio03_data <- bio03_data %>% 
   mutate(
-    pred = predict(ran_ensemble, bio18_data)$mean
+    pred = predict(ran_ensemble, bio03_data)$mean
   )
 
-ggplot(bio18_data, aes(x = bio18, y = pred)) +
+ggplot(bio03_data, aes(x = bio03, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
-# investigate the contribution of bio14:
-bio14_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-bio14, profile = vars(bio14)) %>% 
+
+# investigate the contribution of bio05:
+bio04_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio04, profile = vars(bio04)) %>% 
   prep(training = ran_occ_thin)
 
-bio14_data <- bake(bio14_prof, new_data = NULL)
+bio04_data <- bake(bio04_prof, new_data = NULL)
 
-bio14_data <- bio14_data %>% 
+bio04_data <- bio04_data %>% 
   mutate(
-    pred = predict(ran_ensemble, bio14_data)$mean
+    pred = predict(ran_ensemble, bio04_data)$mean
   )
 
-ggplot(bio14_data, aes(x = bio14, y = pred)) +
+ggplot(bio04_data, aes(x = bio04, y = pred)) +
   geom_point(alpha = .5, cex = 1)
+
 
 # investigate the contribution of bio08:
 bio08_prof <- ran_recipe %>%  # recipe from above
@@ -492,6 +427,39 @@ bio08_data <- bio08_data %>%
 ggplot(bio08_data, aes(x = bio08, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
+
+# investigate the contribution of bio09:
+bio09_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio09, profile = vars(bio09)) %>% 
+  prep(training = ran_occ_thin)
+
+bio09_data <- bake(bio09_prof, new_data = NULL)
+
+bio09_data <- bio09_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio09_data)$mean
+  )
+
+ggplot(bio09_data, aes(x = bio09, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+
+# investigate the contribution of bio14:
+bio14_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio14, profile = vars(bio14)) %>% 
+  prep(training = ran_occ_thin)
+
+bio14_data <- bake(bio14_prof, new_data = NULL)
+
+bio14_data <- bio14_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio14_data)$mean
+  )
+
+ggplot(bio14_data, aes(x = bio14, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+
 # investigate the contribution of bio15:
 bio15_prof <- ran_recipe %>%  # recipe from above
   step_profile(-bio15, profile = vars(bio15)) %>% 
@@ -507,19 +475,36 @@ bio15_data <- bio15_data %>%
 ggplot(bio15_data, aes(x = bio15, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
-# investigate the contribution of altitude:
-altitude_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-altitude, profile = vars(altitude)) %>% 
+
+# investigate the contribution of bio18:
+bio18_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio05, profile = vars(bio18)) %>% 
   prep(training = ran_occ_thin)
 
-altitude_data <- bake(altitude_prof, new_data = NULL)
+bio18_data <- bake(bio18_prof, new_data = NULL)
 
-altitude_data <- altitude_data %>% 
+bio18_data <- bio18_data %>% 
   mutate(
-    pred = predict(ran_ensemble, altitude_data)$mean
+    pred = predict(ran_ensemble, bio18_data)$mean
   )
 
-ggplot(altitude_data, aes(x = altitude, y = pred)) +
+ggplot(bio18_data, aes(x = bio18, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+
+# investigate the contribution of bio19:
+bio19_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-bio19, profile = vars(bio19)) %>% 
+  prep(training = ran_occ_thin)
+
+bio19_data <- bake(bio19_prof, new_data = NULL)
+
+bio19_data <- bio19_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, bio19_data)$mean
+  )
+
+ggplot(bio19_data, aes(x = bio19, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
 
