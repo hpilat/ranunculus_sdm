@@ -147,20 +147,20 @@ predictors_uncorr
 
 # 9 uncorrelated variables - need to further filter down to 5 in order for projections to run
 # more than 5 layers = too much RAM required at this resolution
-suggested_vars <- c("bio06",
-                    "bio12",
-                    "bio10",
-                    "bio19",
-                    "bio07")
+# suggested_vars <- c("bio06",
+                  #  "bio12",
+                  #  "bio10",
+                  #  "bio19",
+                  #  "bio07")
 
 # remove highly correlated predictors
 # here is where the "class" column gets dropped, which messes up recipe below
 # need to retain class column (not in original tutorial code)
-ran_pres_abs_pred <- ran_pres_abs_pred %>% dplyr::select(dplyr::all_of(c(suggested_vars, "class")))
+ran_pres_abs_pred <- ran_pres_abs_pred %>% dplyr::select(dplyr::all_of(c(predictors_uncorr, "class")))
 ran_pres_abs_pred
 
-# now subset the uncorrelated and selected predictors from climate_present
-climate_present_selected <- climate_present[[suggested_vars]]
+# now subset the uncorrelated predictors from climate_present
+climate_present_selected <- climate_present[[predictors_uncorr]]
 
 
 
