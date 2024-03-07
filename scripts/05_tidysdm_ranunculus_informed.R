@@ -29,7 +29,7 @@ na_bound_sf <- read_sf("data/extents/na_bound_sf.shp")
 
 # read in Ranunculus glaberrimus occurrences:
 # cropped to proper study extent in 03_data_prep_ranunculus.R
-ran_occ_vect <- vect("data/processed/ran_occ_sf.shp")
+ran_occ_vect <- vect("data/processed/ran_occ_masked.shp")
 # mask to study area (all occurrences outside bounds set to NA)
 ran_occ_vect <- mask(ran_occ_vect, na_bound_vect)
 # cast to sf object
@@ -158,11 +158,6 @@ predictors_uncorr <- filter_high_cor(predictors_sample, cutoff = 0.8,
                                      verbose = TRUE, names = TRUE, to_keep = NULL)
 predictors_uncorr
 
-# still lots of variables, and R session tends to abort when using more than 5 layers
-# select 5 layers thought to matter most:
-# FEB 29 ATTEMPT TO USE ECOREGIONS AND WATERSHEDS:
-# predictors_uncorr <- c("soil_temp_5_15", "anth_biome", "landcover", "elevation", "ecoregions")
-
 # remove highly correlated predictors
 # here is where the "class" column gets dropped, which messes up recipe below
   # need to retain class column (not in original tutorial code)
@@ -172,6 +167,7 @@ ran_pres_abs_pred
 # now subset the uncorrelated predictors within the multiraster
 predictors_multi_input <- predictors_multi[[predictors_uncorr]]
 predictors_multi_input
+
 
 
 #### Fit the model by cross-validation ####
@@ -276,19 +272,14 @@ prediction_present_best <- predict_raster(ran_ensemble, predictors_multi_input,
 
 ggplot() +
   geom_spatraster(data = prediction_present_best, aes(fill = mean)) +
-  scale_fill_terrain_c()# +
+  scale_fill_terrain_c() +
+  labs(title = "Ranunculus Present Prediction", subtitle = "Informed Model", xlab = "Longitude", ylab = "Latitude")
+
  #  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 
 # write to file
-writeRaster(prediction_present_best, filename = "outputs/ran_multirast_predict-present_5predictors-watersheds_thinned.tif")
+writeRaster(prediction_present_best, filename = "outputs/ran_multirast_predict-present.tif", overwrite = TRUE)
 
-# plot prediction within Skeetchestn Territory
-prediction_present_best_eqArea <- project(prediction_present_best, "EPSG:3005")
-prediction_present_best_skeetch <- crop(prediction_present_best_eqArea, skeetch_vect)
-prediction_present_best_skeetch <- mask(prediction_present_best_skeetch, skeetch_vect)
-plot(prediction_present_best_skeetch)
-# write to file
-writeRaster(prediction_present_best_skeetch, filename = "outputs/ran_multirast_predict-present_5predictors-watersheds_thinned_skeetch.tif")
 
 
 # Binary Predictions
@@ -309,98 +300,12 @@ prediction_present_binary <- predict_raster(ran_ensemble,
 
 ggplot() +
   geom_spatraster(data = prediction_present_binary, aes(fill = binary_mean)) +
-  geom_sf(data= ran_pres_abs_pred %>% filter(class == "presence"))
+  geom_sf(data= ran_pres_abs_pred %>% filter(class == "presence")) +
+  labs(title = "Ranunculus Present Prediction", subtitle = "Informed Model", xlab = "Longitude", ylab = "Latitude")
 
 # write to file
 writeRaster(prediction_present_binary, filename = "outputs/ran_multi_prediction_present_binary.tif")
 
-# start new script so new session can be started here?
-# read in binary raster file
-prediction_present_binary <- rast("outputs/ran_multi_prediction_present_binary.tif")
-
-
-# Suitable Area Calculations
-
-
-# turn presence into polygon so we can calculate suitable area
-# first need to filter out presence cells from raster
-prediction_present_pres <- prediction_present_binary %>% 
-  filter(binary_mean == "presence")
-
-# vectorize raster to get a polygon around presences
-# need to turn raster into data.frame first
-prediction_present_pres <- as.polygons(prediction_present_pres)
-
-# now turn prediction_present_pres polygons into sf object
-prediction_present_sf <- st_as_sf(prediction_present_pres)
-crs(prediction_present_sf) # WGS84
-
-# reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
-prediction_present_area <- st_transform(prediction_present_sf, "EPSG:3005")
-prediction_present_area <- st_area(prediction_present_sf) # 6.53e+11 m^2
-# convert from m^2 to km^2
-prediction_present_area <- units::set_units(st_area(prediction_present_sf), km^2) 
-# 431 186 km^2 of suitable habitat
-
-# total study area calculations:
-# need to use masked sf object: na_bound_sf
-# reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
-na_bound_area <- st_transform(na_bound_sf, "EPSG:3005")
-# calculate study area, in m^2 (default)
-na_bound_area <- st_area(na_bound_sf) # 3.9e+12 m^2
-# convert from m^2 to km^2
-na_bound_area <- units::set_units(st_area(na_bound_sf), km^2) # 3 805 323  km^2
-
-# divide predicted present area by total study area to get proportion
-proportion_suitable_present <- prediction_present_area/na_bound_area
-# 11.1%
-
-
-# calculations for Skeetchestn
-
-# crop and mask total projection to Skeetchestn Territory
-prediction_binary_eqArea <- project(prediction_present_binary, "EPSG:3005")
-prediction_binary_skeetch <- crop(prediction_binary_eqArea, skeetch_vect_cropped)
-prediction_binary_skeetch <- mask(prediction_binary_skeetch, skeetch_vect_cropped)
-
-ggplot() +
-  geom_spatraster(data = prediction_binary_skeetch, aes(fill = binary_mean))
-  # extent is too small, need to fix
-
-# write to file
-writeRaster(prediction_binary_skeetch, filename = "outputs/ran_multirast_5predictors-ecoregions_thinned_skeetch_binary.tif")
-
-# turn presence into polygon so we can calculate suitable area
-# first need to filter out presence cells from raster
-prediction_present_presence_skeetch <- prediction_binary_skeetch %>% 
-  filter(binary_mean == "presence")
-
-# vectorize raster to get a polygon around presences
-# need to turn raster into data.frame first
-prediction_present_presence_skeetch <- as.polygons(prediction_present_presence_skeetch)
-
-# now turn prediction_present_pres polygons into sf object
-prediction_present_skeetch_sf <- st_as_sf(prediction_present_presence_skeetch)
-crs(prediction_present_skeetch_sf) # BC Albers
-
-# calculate area
-prediction_present_skeetch_area <- st_area(prediction_present_skeetch_sf) # 1.98e+9 m^2
-# convert from m^2 to km^2
-prediction_present_skeetch_area <- units::set_units(st_area(prediction_present_skeetch_sf), km^2) 
-# 1982 km^2 of suitable habitat
-
-
-# calculate area of Skeetchestn Territory:
-skeetch_sf <- read_sf("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
-plot(skeetch_sf)
-crs(skeetch_sf) # BC Albers, NAD83
-skeetch_area <- st_area(skeetch_sf) # 7e+09 m^2
-# convert from m^2 to km^2
-skeetch_area <- units::set_units(st_area(skeetch_sf), km^2)
-
-# proportion of suitable area relative to Skeetchestn Territory:
-proportion_suitable_present_skeetch <- prediction_present_skeetch_area/skeetch_area
-# 28.3%
 
 
 #### Visualizing the Contribution of Individual Variables ####
@@ -422,39 +327,7 @@ vip_ensemble
 # use step_profile() to create a new recipe for generating a dataset to make 
 # the marginal prediction
 # uncorrelated predictors:
-# need to tailor to this script and update below code
-# there must be a way to loop through this?
-# update ran_occ_thin with ran_pres_abs_pred
-
-# investigate the contribution of soil_temp_5_15:
-soil_temp_5_15_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-soil_temp_5_15, profile = vars(soil_temp_5_15)) %>% 
-  prep(training = ran_pres_abs_pred)
-
-soil_temp_5_15_data <- bake(soil_temp_5_15_prof, new_data = NULL)
-
-soil_temp_5_15_data <- soil_temp_5_15_data %>% 
-  mutate(
-    pred = predict(ran_ensemble, soil_temp_5_15_data)$mean
-  )
-
-ggplot(soil_temp_5_15_data, aes(x = soil_temp_5_15, y = pred)) +
-  geom_point(alpha = .5, cex = 1)
-
-# investigate the contribution of Climate (climate_zones):
-Climate_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-Climate, profile = vars(Climate)) %>% 
-  prep(training = ran_pres_abs_pred)
-
-Climate_data <- bake(Climate_prof, new_data = NULL)
-
-Climate_data <- Climate_data %>% 
-  mutate(
-    pred = predict(ran_ensemble, Climate_data)$mean
-  )
-
-ggplot(Climate_data, aes(x = Climate, y = pred)) +
-  geom_point(alpha = .5, cex = 1)
+predictors_uncorr
 
 # investigate the contribution of anth_biome:
 anth_biome_prof <- ran_recipe %>%  # recipe from above
@@ -471,6 +344,23 @@ anth_biome_data <- anth_biome_data %>%
 ggplot(anth_biome_data, aes(x = anth_biome, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
+
+# investigate the contribution of Climate (climate_zones):
+climate_zones_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-climate_zones, profile = vars(Climate)) %>% 
+  prep(training = ran_pres_abs_pred)
+
+climate_zones_data <- bake(climate_zones_prof, new_data = NULL)
+
+climate_zones_data <- climate_zones_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, climate_zones_data)$mean
+  )
+
+ggplot(climate_zones_data, aes(x = climate_zones, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+
 # investigate the contribution of ecoregions:
 ecoregions_prof <- ran_recipe %>%  # recipe from above
   step_profile(-ecoregions, profile = vars(ecoregions)) %>% 
@@ -486,19 +376,52 @@ ecoregions_data <- ecoregions_data %>%
 ggplot(ecoregions_data, aes(x = ecoregions, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
-# investigate the contribution of lndcvr_na:
-lndcvr_na_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-lndcvr_na, profile = vars(lndcvr_na)) %>% 
+
+# investigate the contribution of elevation:
+elevation_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-elevation, profile = vars(elevation)) %>% 
   prep(training = ran_pres_abs_pred)
 
-lndcvr_na_data <- bake(lndcvr_na_prof, new_data = NULL)
+elevation_data <- bake(elevation_prof, new_data = NULL)
 
-lndcvr_na_data <- lndcvr_na_data %>% 
+elevation_data <- elevation_data %>% 
   mutate(
-    pred = predict(ran_ensemble, lndcvr_na_data)$mean
+    pred = predict(ran_ensemble, elevation_data)$mean
   )
 
-ggplot(lndcvr_na_data, aes(x = lndcvr_na, y = pred)) +
+ggplot(elevation_data, aes(x = elevation, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+
+# investigate the contribution of lndcvr_na:
+landcover_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-landcover, profile = vars(landcover)) %>% 
+  prep(training = ran_pres_abs_pred)
+
+landcover_data <- bake(landcover_prof, new_data = NULL)
+
+landcover_data <- landcover_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, landcover_data)$mean
+  )
+
+ggplot(landcover_data, aes(x = landcover, y = pred)) +
+  geom_point(alpha = .5, cex = 1)
+
+
+# investigate the contribution of soil_temp_5_15:
+soil_temp_5_15_prof <- ran_recipe %>%  # recipe from above
+  step_profile(-soil_temp_5_15, profile = vars(soil_temp_5_15)) %>% 
+  prep(training = ran_pres_abs_pred)
+
+soil_temp_5_15_data <- bake(soil_temp_5_15_prof, new_data = NULL)
+
+soil_temp_5_15_data <- soil_temp_5_15_data %>% 
+  mutate(
+    pred = predict(ran_ensemble, soil_temp_5_15_data)$mean
+  )
+
+ggplot(soil_temp_5_15_data, aes(x = soil_temp_5_15, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
 
@@ -515,37 +438,6 @@ watersheds_data <- watersheds_data %>%
   )
 
 ggplot(watersheds_data, aes(x = watersheds, y = pred)) +
-  geom_point(alpha = .5, cex = 1)
-
-
-# investigate the contribution of elevation:
-elevation_na_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-elevation_na, profile = vars(elevation_na)) %>% 
-  prep(training = ran_pres_abs_pred)
-
-elevation_na_data <- bake(elevation_na_prof, new_data = NULL)
-
-elevation_na_data <- elevation_na_data %>% 
-  mutate(
-    pred = predict(ran_ensemble, elevation_na_data)$mean
-  )
-
-ggplot(elevation_na_data, aes(x = elevation_na, y = pred)) +
-  geom_point(alpha = .5, cex = 1)
-
-# investigate the contribution of soil_phh2o_5_15:
-soil_phh2o_5_15_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-soil_phh2o_5_15, profile = vars(soil_phh2o_5_15)) %>% 
-  prep(training = ran_pres_abs_pred)
-
-soil_phh2o_5_15_data <- bake(soil_phh2o_5_15_prof, new_data = NULL)
-
-soil_phh2o_5_15_data <- soil_phh2o_5_15_data %>% 
-  mutate(
-    pred = predict(ran_ensemble, soil_phh2o_5_15_data)$mean
-  )
-
-ggplot(soil_phh2o_5_15_data, aes(x = soil_phh2o_5_15, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
 
