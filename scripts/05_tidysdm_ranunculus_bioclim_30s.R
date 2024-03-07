@@ -277,7 +277,7 @@ prediction_present_binary
 # plot the binary map
 ggplot() +
   geom_spatraster(data = prediction_present_binary, aes(fill = binary_mean)) +
-  labs(title = "Ranunculus Present Prediction", subtitle = "Informed Model", xlab = "Longitude", ylab = "Latitude") # +
+  labs(title = "Ranunculus Present Prediction", subtitle = "Bioclim Model", xlab = "Longitude", ylab = "Latitude") # +
   # geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 
 # write to file
@@ -308,7 +308,8 @@ prediction_future_best <- predict_raster(ran_ensemble,
 
 ggplot() +
   geom_spatraster(data = prediction_future_best, aes(fill = mean)) +
-  scale_fill_terrain_c()
+  scale_fill_terrain_c() +
+  labs(title = "Ranunculus Future Prediction", subtitle = "Bioclim Model", xlab = "Longitude", ylab = "Latitude")
 
 # write to file
 writeRaster(prediction_future_best, filename = "outputs/ran_predict_future_bioclim30s.tif", overwrite = TRUE)
@@ -332,7 +333,8 @@ prediction_future_binary <- predict_raster(ran_ensemble_binary,
 prediction_future_binary
 
 ggplot() +
-  geom_spatraster(data = prediction_future_binary, aes(fill = binary_mean)) #+
+  geom_spatraster(data = prediction_future_binary, aes(fill = binary_mean)) +
+  labs(title = "Ranunculus Future Prediction", subtitle = "Bioclim Model", xlab = "Longitude", ylab = "Latitude")#+
  # geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 
 # write to file
