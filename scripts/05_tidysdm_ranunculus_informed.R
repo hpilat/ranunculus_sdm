@@ -278,7 +278,7 @@ ggplot() +
  #  geom_sf(data = ran_pres_abs_pred %>% filter(class == "presence"))
 
 # write to file
-writeRaster(prediction_present_best, filename = "outputs/ran_multirast_predict-present.tif", overwrite = TRUE)
+writeRaster(prediction_present_best, filename = "outputs/ran_informed_prediction_present.tif", overwrite = TRUE)
 
 
 
