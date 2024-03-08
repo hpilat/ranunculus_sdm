@@ -3,10 +3,11 @@
 # dir.create("data/extents")
 # dir.create("data/processed")
 # dir.create("scripts/")
+# dir.create("outputs/")
 
 
 library(tidyverse)
-library(geodata) # won't work when on AAFC VPN
+# library(geodata) # won't work when on AAFC VPN
 library(terra)
 library(raster)
 library(sf)
@@ -24,7 +25,8 @@ library(rgbif)
 # usethis::edit_r_environ()
 
 # download occurrence data for Ranunculus glaberrimus
-# within North America, between 1950-2024
+# within North America, between 1940-2024
+# Download data: March 7th, 2024
 rgbif::occ_download(
   pred("hasGeospatialIssue", FALSE), 
   pred("hasCoordinate", TRUE),
@@ -42,6 +44,8 @@ ran_occ_download <- occ_download_get(key = '0067361-231120084113126',
   occ_download_import(key = '0067361-231120084113126', 
                       path = "data/raw/")
 
+# write to file for reuse
+write.csv(ran_occ_download, file = "data/raw/ran_occ_download.csv")
 
 ## Predictor Data ##
 
@@ -52,8 +56,8 @@ ran_occ_download <- occ_download_get(key = '0067361-231120084113126',
 # tidysdm tutorial uses pastclim to access WorldClim data, but only low resolution
   # datasets are available
 # https://www.worldclim.org/data/worldclim21.html 
-  # 9.7 GB file, moved to data processing script in order to crop layers prior to 
-  # joining in a multilayer raster
+  # 9.7 GB file, moved to 04_data_processing.R script in order to crop layers 
+  # prior to joining in a multilayer raster
 
 
 # Future Climate Data
@@ -70,7 +74,8 @@ worldclim_future_na <- rast("data/raw/wc2.1_30s_bioc_HadGEM3-GC31-LL_ssp126_2081
 anth_biome <- rast("data/raw/anthromes_EqArea.tif")
 
 # read in North American Climate Zones data
-climate_zones_sf <- read_sf("data/raw/North_America_Climate_Zones.shp")
+
+climate_zones_sf <- read_sf("data/raw/na_climatezones_shapefile/climatezones_shapefile/NA_ClimateZones/data/North_America_Climate_Zones.shp")
 climate_zones_vect <- vect(climate_zones_sf)
 
 # read in North American Ecoregions (level III) data
@@ -83,27 +88,9 @@ elevation_na <- rast("data/raw/northamerica_elevation_cec_2023.tif")
 # read in landcover data for North America
 lndcvr_na <- rast("data/raw/NA_NALCMS_landcover_2020_30m.tif")
 
-# read in protected areas data
-# IUCN categories:
-protect_area_IUCN_sf <- read_sf("data/raw/CEC_NA_2021_terrestrial_IUCN_categories.shp")
-protect_area_IUCN_vect <- vect(protect_area_IUCN_sf)
-
-# OECMs - what does this mean?
-protect_area_OECM_sf <- read_sf("data/raw/CEC_NA_2021_terrestrial_OECMs.shp")
-protect_area_OECM_vect <- vect(protect_area_OECM_sf)
-
 # soil pH data:
-soil_phh2o_0_5 <- geodata::soil_world(var = "phh2o", depth = 5, stat = "mean", 
-                                      path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data\\raw", 
-                                      na.rm = TRUE)
-
-soil_phh2o_5_15 <- geodata::soil_world(var = "phh2o", depth = 15, stat = "mean", 
-                                       path = "C:\\Users\\PilatH\\OneDrive - AGR-AGR\\Documents\\ranunculus_sdm\\data\\raw", 
-                                       na.rm = TRUE)
-
-# IF geodata package isn't working:
-# soil_phh2o_0_5 <- rast("data/raw/soil_world/phh2o_0-5cm_mean_30s.tif")
-# soil_phh2o_5_15 <- rast("data/raw/soil_world/phh2o_5-15cm_mean_30s.tif")
+soil_phh2o_0_5 <- rast("data/raw/soil_world/phh2o_0-5cm_mean_30s.tif")
+soil_phh2o_5_15 <- rast("data/raw/soil_world/phh2o_5-15cm_mean_30s.tif")
 
 # soil temperature data:
 soil_temp_0_5 <- rast("data/raw/SBIO4_0_5cm_Temperature_Seasonality.tif")

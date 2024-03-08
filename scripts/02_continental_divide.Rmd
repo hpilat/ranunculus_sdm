@@ -9,6 +9,11 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+NOTE from Hannah: I was unable to save the files using relative paths. I had to 
+input my working directory in order for this .Rmd to run. I don't know how to 
+adjust the working directory properly for this file without messing up everything else.
+
+
 ## Background
 
 This script aims to create a geospatial vector dataset that provides the boundary for the continental divide of North America, buffered by 200km to its east, then bounded by the Arctic and Pacific oceans, and the Mexico border.
@@ -33,8 +38,8 @@ Unzip those, and you'll see a PDF document to read.
 We want the level02 shapefiles, for both arctic and north america
 
 ```{r}
-basin.na <- st_read("data/hybas_na_lev01-12_v1c/hybas_na_lev02_v1c.shp")
-basin.ar <- st_read("data/hybas_ar_lev01-12_v1c/hybas_ar_lev02_v1c.shp")
+basin.na <- st_read("C:/Users/PilatH/OneDrive - AGR-AGR/Desktop/ranunculus_sdm/data/raw/hybas_na_lev01-12_v1c/hybas_na_lev02_v1c.shp")
+basin.ar <- st_read("C:/Users/PilatH/OneDrive - AGR-AGR/Desktop/ranunculus_sdm/data/raw/hybas_ar_lev01-12_v1c/hybas_ar_lev02_v1c.shp")
 ```
 Note that many of the variables are being treated as numeric, when they should be character.  The key field is "HYBAS_ID", which needs to be converted to character.
 
@@ -171,7 +176,7 @@ OK! that looks useful.
 Now we should export this layer, then we can create a new buffered layer too.
 
 ```{r}
-write_sf(western.divide, "data/continental_divide/continental_divide.shp")
+write_sf(western.divide, "C:/Users/PilatH/OneDrive - AGR-AGR/Desktop/ranunculus_sdm/data/extents/continental_divide.shp")
 ```
 
 ## Buffer eastward
@@ -302,5 +307,5 @@ ggplot(western.final.boundary) + geom_sf(fill = "grey")
 ## Write to file
 
 ```{r}
-write_sf(western.final.boundary, "data/continental_divide_buffer_boundary.tif")
+write_sf(western.final.boundary, "C:/Users/PilatH/OneDrive - AGR-AGR/Desktop/ranunculus_sdm/data/extents/continental_divide_buffer_boundary.shp")
 ```

@@ -24,10 +24,10 @@ library(terra)
 
 # Geographic extent created in continental_divide.Rmd
 # read in shapefile so we can reduce the extent
-na_bound_vect <- vect("data/raw/continental_divide_buffer_boundary.shp")
+na_bound_vect <- vect("data/extents/continental_divide_buffer_boundary.shp")
 
 # read in same file as an sf object so we can calculate our study area
-na_bound_sf <- read_sf("data/raw/continental_divide_buffer_boundary.shp")
+na_bound_sf <- read_sf("data/extents/continental_divide_buffer_boundary.shp")
 
 # created an empty raster based on study extent to use as a basemap for TidySDM, 
   # to be cropped down below
@@ -98,10 +98,11 @@ ylims_skeetch <- c(ext(skeetch_sf)$ymin - 0.5, ext(skeetch_sf)$ymax + 0.5)
 
 extent_skeetch <- terra::ext(xlims_skeetch, ylims_skeetch)
 # error, expected 4 numbers
-# try inputting bounding box directly
-extent_skeetch <- terra::ext()
-skeetch_vect_extended <- crop(skeetch_vect_WGS84, extent_skeetch)
-skeetch_vect_extended
+# try inputting bounding box directly, round up existing extent
+extent_skeetch <- terra::ext(-121.49, -120.30, 50.40, 51.50)
+skeetch_extended <- st_crop(skeetch_sf, extent_skeetch)
+skeetch_extended
+
 
 # transform back to Albers for use in area calculations
 skeetch_vect_cropped <- project(skeetch_vect_extended, "EPSG:3005")

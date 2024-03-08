@@ -1,5 +1,5 @@
 # Following tidysdm tutorial, we input Ranunculus glaberrimus occurrence records 
-  # and informed predictors into the tidysdm pipeline
+  # and informed predictors  at 30 arcsec resolution into the tidysdm pipeline
 # Please first run scripts in the following order: 
   # 01_data_download.R
   # 02_continental_divide.Rmd
@@ -12,7 +12,7 @@
 library(tidysdm)
 library(tidyterra)
 library(sf)
-library(pastclim)
+# library(pastclim)
 library(ggplot2)
 library(overlapping)
 
@@ -300,11 +300,11 @@ prediction_present_binary <- predict_raster(ran_ensemble,
 
 ggplot() +
   geom_spatraster(data = prediction_present_binary, aes(fill = binary_mean)) +
-  geom_sf(data= ran_pres_abs_pred %>% filter(class == "presence")) +
+  # geom_sf(data= ran_pres_abs_pred %>% filter(class == "presence")) +
   labs(title = "Ranunculus Present Prediction", subtitle = "Informed Model", xlab = "Longitude", ylab = "Latitude")
 
 # write to file
-writeRaster(prediction_present_binary, filename = "outputs/ran_multi_prediction_present_binary.tif")
+writeRaster(prediction_present_binary, filename = "outputs/ran_informed_prediction_present_binary.tif")
 
 
 
@@ -347,7 +347,7 @@ ggplot(anth_biome_data, aes(x = anth_biome, y = pred)) +
 
 # investigate the contribution of Climate (climate_zones):
 climate_zones_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-climate_zones, profile = vars(Climate)) %>% 
+  step_profile(-climate_zones, profile = vars(climate_zones)) %>% 
   prep(training = ran_pres_abs_pred)
 
 climate_zones_data <- bake(climate_zones_prof, new_data = NULL)
@@ -510,7 +510,9 @@ ran_thin_rep_ens <- predict_raster(ran_thin_rep_ens,
 
 ggplot() +
   geom_spatraster(data = ran_thin_rep_ens, aes(fill = mean)) +
-  scale_fill_terrain_c()
+  scale_fill_terrain_c() +
+  labs(title = "Ranunculus Present Sensitivity", subtitle = "Bioclim Model", xlab = "Longitude", ylab = "Latitude")
+  
 
 ran_thin_rep_ens
 # convert to binary and calculate area?

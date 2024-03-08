@@ -6,7 +6,6 @@
   # 03_cropped_extent.R
   # 04_data_processing.R
 
-# dir.create("outputs/")
 
 library(tidysdm)
 library(tidyterra)
@@ -28,7 +27,7 @@ na_bound_sf <- read_sf("data/extents/na_bound_sf.shp")
 
 # read in Ranunculus glaberrimus occurrences:
 # cropped to proper study extent in 03_data_prep_ranunculus.R
-ran_occ_vect <- vect("data/processed/ran_occ_sf.shp")
+ran_occ_vect <- vect("data/processed/ran_occ_masked.shp")
 # mask to study area (all occurrences outside bounds set to NA)
 ran_occ_vect <- mask(ran_occ_vect, na_bound_vect)
 # cast to sf object
@@ -54,7 +53,7 @@ ggplot()+
 # thin the occurrences to have one per cell in the na_bound_rast raster
 
 set.seed(1234567)
-ran_occ_thin_cell <- thin_by_cell(ran_occ_sf, raster = na_bound_rast)
+ran_pres_abs_pred_cell <- thin_by_cell(ran_occ_sf, raster = na_bound_rast)
 nrow(ran_occ_thin_cell) # 2462
 
 ggplot() +
@@ -88,7 +87,7 @@ ggplot() +
 # choice of 5 and 15km is arbitrary
 # select 10 times as many pseudoabsences as presences 
 # (recommended 10 000 pseudoabsences by lit review)
-# ran_occ_thin will then have presences and pseudoabsences
+
 set.seed(1234567)
 ran_pres_abs <- sample_pseudoabs(ran_occ_thin_dist, 
                                  n = 10 * nrow(ran_occ_thin_dist), 
@@ -259,7 +258,7 @@ ggplot() +
 # model gives us probability of occurrence
 
 # write to file
-writeRaster(prediction_present_best, filename = "outputs/ran_bioclim30s_predict-present.tif")
+writeRaster(prediction_present_best, filename = "outputs/ran_bioclim30s_predict-present.tif", overwrite = TRUE)
 
 
 # can convert to binary predictions (present vs absence)
@@ -291,7 +290,7 @@ writeRaster(prediction_present_binary, filename = "outputs/ran_bioclim30s_predic
 
 # all 19 bioclimatic variables, no altitude (because it doesn't change over time)
 # select a subset of 5 uncorrelated predictors, using suggested_vars from before:
-climate_future_selected <- climate_future[[suggested_vars]]
+climate_future_selected <- climate_future[[predictors_uncorr]]
 climate_future_selected
 
 # predict using the ensemble:
@@ -317,9 +316,6 @@ writeRaster(prediction_future_best, filename = "outputs/ran_predict_future_biocl
 
 
 # convert predictions to binary (presence/absence)
-# if plot doesn't change much, models are consistent
-# model gives us probability of occurrence
-# can convert to binary predictions (present vs absence)
 
 
 ran_ensemble_binary <- calib_class_thresh(ran_ensemble, 
@@ -371,7 +367,7 @@ predictors_uncorr
 # investigate the contribution of bio02:
 bio02_prof <- ran_recipe %>%  # recipe from above
   step_profile(-bio02, profile = vars(bio02)) %>% 
-  prep(training = ran_occ_thin)
+  prep(training = ran_pres_abs_pred)
 
 bio02_data <- bake(bio02_prof, new_data = NULL)
 
@@ -387,7 +383,7 @@ ggplot(bio02_data, aes(x = bio02, y = pred)) +
 # investigate the contribution of bio07:
 bio03_prof <- ran_recipe %>%  # recipe from above
   step_profile(-bio03, profile = vars(bio03)) %>% 
-  prep(training = ran_occ_thin)
+  prep(training = ran_pres_abs_pred)
 
 bio03_data <- bake(bio03_prof, new_data = NULL)
 
@@ -403,7 +399,7 @@ ggplot(bio03_data, aes(x = bio03, y = pred)) +
 # investigate the contribution of bio05:
 bio04_prof <- ran_recipe %>%  # recipe from above
   step_profile(-bio04, profile = vars(bio04)) %>% 
-  prep(training = ran_occ_thin)
+  prep(training = ran_pres_abs_pred)
 
 bio04_data <- bake(bio04_prof, new_data = NULL)
 
@@ -419,7 +415,7 @@ ggplot(bio04_data, aes(x = bio04, y = pred)) +
 # investigate the contribution of bio08:
 bio08_prof <- ran_recipe %>%  # recipe from above
   step_profile(-bio08, profile = vars(bio08)) %>% 
-  prep(training = ran_occ_thin)
+  prep(training = ran_pres_abs_pred)
 
 bio08_data <- bake(bio08_prof, new_data = NULL)
 
@@ -435,7 +431,7 @@ ggplot(bio08_data, aes(x = bio08, y = pred)) +
 # investigate the contribution of bio09:
 bio09_prof <- ran_recipe %>%  # recipe from above
   step_profile(-bio09, profile = vars(bio09)) %>% 
-  prep(training = ran_occ_thin)
+  prep(training = ran_pres_abs_pred)
 
 bio09_data <- bake(bio09_prof, new_data = NULL)
 
@@ -451,7 +447,7 @@ ggplot(bio09_data, aes(x = bio09, y = pred)) +
 # investigate the contribution of bio14:
 bio14_prof <- ran_recipe %>%  # recipe from above
   step_profile(-bio14, profile = vars(bio14)) %>% 
-  prep(training = ran_occ_thin)
+  prep(training = ran_pres_abs_pred)
 
 bio14_data <- bake(bio14_prof, new_data = NULL)
 
@@ -467,7 +463,7 @@ ggplot(bio14_data, aes(x = bio14, y = pred)) +
 # investigate the contribution of bio15:
 bio15_prof <- ran_recipe %>%  # recipe from above
   step_profile(-bio15, profile = vars(bio15)) %>% 
-  prep(training = ran_occ_thin)
+  prep(training = ran_pres_abs_pred)
 
 bio15_data <- bake(bio15_prof, new_data = NULL)
 
@@ -482,8 +478,8 @@ ggplot(bio15_data, aes(x = bio15, y = pred)) +
 
 # investigate the contribution of bio18:
 bio18_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-bio05, profile = vars(bio18)) %>% 
-  prep(training = ran_occ_thin)
+  step_profile(-bio18, profile = vars(bio18)) %>% 
+  prep(training = ran_pres_abs_pred)
 
 bio18_data <- bake(bio18_prof, new_data = NULL)
 
@@ -496,31 +492,10 @@ ggplot(bio18_data, aes(x = bio18, y = pred)) +
   geom_point(alpha = .5, cex = 1)
 
 
-# investigate the contribution of bio19:
-bio19_prof <- ran_recipe %>%  # recipe from above
-  step_profile(-bio19, profile = vars(bio19)) %>% 
-  prep(training = ran_occ_thin)
-
-bio19_data <- bake(bio19_prof, new_data = NULL)
-
-bio19_data <- bio19_data %>% 
-  mutate(
-    pred = predict(ran_ensemble, bio19_data)$mean
-  )
-
-ggplot(bio19_data, aes(x = bio19, y = pred)) +
-  geom_point(alpha = .5, cex = 1)
-
-
-
-# Partial Dependency Plots
-# edit below to include our object names:
-pdp_bio05 <- model_profile(explainer_lacerta_ens, N = 500, variables = "bio05")
-plot(pdp_bio05)
-
-
 
 ## Repeated Ensembles ##
+
+
 
 # explore the effect of thinning and sampling pseudoabsences on model performance
 # create a list of simple_ensembles by looping through the SDM pipeline
