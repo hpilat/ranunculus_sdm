@@ -39,9 +39,6 @@ skeetch_vectWGS84 <- project(skeetch_vect, "EPSG:4326")
 ## Informed Model (Present Projections Only)
 
 
-# extract presence cells from SpatRaster:
-informed_present_binary_presence <- extract(informed_present_binary, binary_mean == "presence")
-
 # turn presence into polygon so we can calculate suitable area
 # first need to transform CRS to Albers equal area projection
 informed_present_binary_Albers <- project(informed_present_binary, "EPSG:3005")
@@ -285,8 +282,3 @@ skeetch_area <- units::set_units(st_area(skeetch_sf), km^2)
 # proportion of suitable area relative to Skeetchestn Territory:
 proportion_suitable_future_skeetch <- prediction_future_skeetch_area/skeetch_area
 # 28.3%
-
-
-
-
-
