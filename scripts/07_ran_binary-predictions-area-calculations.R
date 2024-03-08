@@ -9,7 +9,7 @@
   # 06_ran_bioclim30s_present-projection.R
   # 07_ran_bioclim30s_future-projection.R
 
-library(tidysdm)
+library(tidyverse)
 library(terra)
 library(sf)
 
