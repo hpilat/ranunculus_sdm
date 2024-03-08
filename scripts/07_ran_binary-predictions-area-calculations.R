@@ -14,10 +14,19 @@ library(tidyterra)
 library(terra)
 library(sf)
 
-# Projections:
+# Predictions:
+
+# Continuous:
+informed_present_continuous <- rast("outputs/ran_informed_prediction_present.tif")
+bioclim30s_present_continuous <- rast("outputs/ran_bioclim30s_predict-present.tif")
+bioclim30s_future_continuous <- rast("outputs/ran_predict_future_bioclim30s.tif")
+
+# Binary:
 informed_present_binary <- rast("outputs/ran_informed_prediction_present_binary.tif")
 bioclim30s_present_binary <- rast("outputs/ran_bioclim30s_predict-present-binary.tif")
 bioclim30s_future_binary <- rast("outputs/ran_bioclim30s_predict-future-binary.tif")
+
+
 
 # Extent objects:
 
@@ -29,6 +38,45 @@ na_bound_sf <- read_sf("data/extents/na_bound_sf.shp")
 skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
 # transform to WGS84:
 skeetch_vectWGS84 <- project(skeetch_vect, "EPSG:4326")
+
+
+
+# Cropping Predictions to Skeetchestn Territory:
+
+# Informed Prediction:
+informed_prediction_present_skeetch <- crop(informed_present_continuous, skeetch_vectWGS84)
+plot(informed_prediction_present_skeetch)
+
+# plot with skeetch_vectWGS84 overlaid
+plot(informed_prediction_present_skeetch)
+lines(skeetch_vectWGS84)
+
+# write to .tif file:
+writeRaster(informed_prediction_present_skeetch, filename = "outputs/informed_prediction_present_skeetch.tif", overwrite = TRUE)
+
+# Bioclim30s Present Prediction:
+bioclim30s_present_continuous_skeetch <- crop(bioclim30s_present_continuous, skeetch_vectWGS84)
+plot(bioclim30s_present_continuous_skeetch)
+writeRaster(bioclim30s_present_continuous_skeetch, filename = "outputs/bioclim30s_present_continuous_skeetch.tif", overwrite = TRUE)
+
+# plot with skeetch_vectWGS84 overlaid
+plot(bioclim30s_present_continuous_skeetch)
+lines(skeetch_vectWGS84)
+
+# write to .tif file:
+writeRaster(bioclim30s_present_continuous_skeetch, filename = "outputs/informed_prediction_present_skeetch.tif", overwrite = TRUE)
+
+
+# Bioclim30s Future Prediction:
+bioclim30s_future_continuous_skeetch <- crop(bioclim30s_future_continuous, skeetch_vectWGS84)
+plot(bioclim30s_future_continuous_skeetch)
+
+# plot with skeetch_vectWGS84 overlaid
+plot(bioclim30s_future_continuous_skeetch)
+lines(skeetch_vectWGS84)
+
+# write to .tif file:
+writeRaster(bioclim30s_future_continuous_skeetch, filename = "outputs/bioclim30s_future_continuous_skeetch.tif", overwrite = TRUE)
 
 
 
