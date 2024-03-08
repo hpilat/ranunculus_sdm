@@ -26,6 +26,8 @@ na_bound_vect <- vect("data/extents/na_bound_vect.shp")
 na_bound_sf <- read_sf("data/extents/na_bound_sf.shp")
 # Skeetchestn territory boundary vector for masking:
 skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
+# transform to WGS84:
+skeetch_vectWGS84 <- project(skeetch_vect, "EPSG:4326")
 
 
 
@@ -36,6 +38,9 @@ skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
 
 ## Informed Model (Present Projections Only)
 
+
+# extract presence cells from SpatRaster:
+informed_present_binary_presence <- extract(informed_present_binary, binary_mean == "presence")
 
 # turn presence into polygon so we can calculate suitable area
 # first need to transform CRS to Albers equal area projection
@@ -75,8 +80,8 @@ proportion_suitable_present <- prediction_present_area/na_bound_area
 
 
 # crop results to Skeetchestn territory - convert CRS to Albers first?
-informed_binary_skeetch <- crop(informed_present_binary, skeetch_vect_cropped)
-informed_binary_skeetch <- mask(informed_binary_skeetch, skeetch_vect_cropped)
+informed_binary_skeetch <- crop(informed_present_binary, skeetch_vectWGS84)
+informed_binary_skeetch <- mask(informed_binary_skeetch, skeetch_vectWGS84)
 plot(informed_binary_skeetch)
 
 # turn presence into polygon so we can calculate suitable area
@@ -240,8 +245,8 @@ percent_change <- (change_area_present_to_2100/prediction_future_area_num)* 100
 
 # crop and mask total projection to Skeetchestn Territory
 prediction_future_binary_eqArea <- project(prediction_future_binary, "EPSG:3005")
-prediction_future_binary_skeetch <- crop(prediction_future_binary_eqArea, skeetch_vect_cropped)
-prediction_future_binary_skeetch <- mask(prediction_Future_binary_skeetch, skeetch_vect_cropped)
+prediction_future_binary_skeetch <- crop(prediction_future_binary_eqArea, skeetch_vectWGS84)
+prediction_future_binary_skeetch <- mask(prediction_Future_binary_skeetch, skeetch_vectWGS84)
 
 ggplot() +
   geom_spatraster(data = prediction_future_binary_skeetch, aes(fill = binary_mean))
