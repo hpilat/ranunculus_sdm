@@ -14,7 +14,7 @@ library(terra)
 library(sf)
 
 # Projections:
-informed_present_binary <- rast("outputs/ran_multi_prediction_present_binary.tif")
+informed_present_binary <- rast("outputs/ran_informed_prediction_present_binary.tif")
 bioclim30s_present_binary <- rast("outputs/ran_bioclim30s_predict-present-binary.tif")
 bioclim30s_future_binary <- rast("outputs/ran_bioclim30s_predict-future-binary.tif")
 
@@ -26,9 +26,7 @@ na_bound_vect <- vect("data/extents/na_bound_vect.shp")
 na_bound_sf <- read_sf("data/extents/na_bound_sf.shp")
 # Skeetchestn territory boundary vector for masking:
 skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
-skeetch_vect_cropped <- vect("data/extents/skeetch_vect_cropped_albers.shp")
-# reproject to WGS84
-skeetch_vect_WGS84 <- project(skeetch_vect, "EPSG:4326")
+
 
 
 
