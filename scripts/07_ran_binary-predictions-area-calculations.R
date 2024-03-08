@@ -5,11 +5,12 @@
   # 02_continental_divide.Rmd
   # 03_cropped_extent.R
   # 04_data_processing
-  # 05_ranunculus_bioclim_30s.R
-  # 06_ran_bioclim30s_present-projection.R
-  # 07_ran_bioclim30s_future-projection.R
+  # 05_tidysdm_ranunculus_informed.R
+  # 06_tidysdm_ranunculus_bioclim_30s.R
+
 
 library(tidyverse)
+library(tidyterra)
 library(terra)
 library(sf)
 
@@ -31,8 +32,24 @@ skeetch_vectWGS84 <- project(skeetch_vect, "EPSG:4326")
 
 
 
-
 # Area Calculations
+
+
+# Overall study extent:
+# reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
+na_bound_albers <- st_transform(na_bound_sf, "EPSG:3005")
+# calculate study area, in m^2 (default)
+na_bound_area <- st_area(na_bound_albers) # 3.83e+12 m^2
+na_bound_area <- units::set_units(st_area(na_bound_albers), km^2) # 3 805 697  km^2
+
+
+# Skeetchestn Territory:
+skeetch_sf <- read_sf("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
+plot(skeetch_sf)
+crs(skeetch_sf) # BC Albers, NAD83
+skeetch_area <- st_area(skeetch_sf) # 7e+09 m^2
+# convert from m^2 to km^2
+skeetch_area <- units::set_units(st_area(skeetch_sf), km^2) # 6996 km^2
 
 
 
@@ -60,20 +77,13 @@ informed_present_area <- st_transform(informed_present_sf, "EPSG:3005")
 informed_present_area <- st_area(informed_present_sf) # 1.48e+12 m^2
 # convert from m^2 to km^2
 informed_present_area <- units::set_units(st_area(informed_present_sf), km^2) 
-# 1 478 904 km^2 of suitable habitat
-
-# Overall study extent:
-# reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
-na_bound_albers <- st_transform(na_bound_sf, "EPSG:3005")
-# calculate study area, in m^2 (default)
-na_bound_area <- st_area(na_bound_albers) # 3.83e+12 m^2
-na_bound_area <- units::set_units(st_area(na_bound_albers), km^2) # 3 805 323  km^2
+# 936 476 km^2 of suitable habitat
 
 # divide predicted present area by total study area to get proportion
-proportion_suitable_present <- prediction_present_area/na_bound_area
+proportion_suitable_present <- informed_present_area/na_bound_area # 24.6%
 
 
-# Area Calculations for Skeetchestn:
+# Present Suitable Area for Skeetchestn, from Informed Model:
 
 
 # crop results to Skeetchestn territory - convert CRS to Albers first?
@@ -99,19 +109,12 @@ informed_present_skeetch_area <- st_transform(informed_present_skeetch_sf, "EPSG
 informed_present_skeetch_area <- st_area(informed_present_skeetch_sf) # 1.98e+9 m^2
 # convert from m^2 to km^2
 informed_present_skeetch_area <- units::set_units(st_area(informed_present_skeetch_sf), km^2) 
-# 1982 km^2 of suitable habitat
+# 1746 km^2 of suitable habitat
 
-# calculate area of Skeetchestn Territory:
-skeetch_sf <- read_sf("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
-plot(skeetch_sf)
-crs(skeetch_sf) # BC Albers, NAD83
-skeetch_area <- st_area(skeetch_sf) # 7e+09 m^2
-# convert from m^2 to km^2
-skeetch_area <- units::set_units(st_area(skeetch_sf), km^2)
 
 # proportion of suitable area relative to Skeetchestn Territory:
 proportion_suitable_informed_present_skeetch <- informed_present_skeetch_area/skeetch_area
-# 28.3%
+# 25%
 
 
 
@@ -140,25 +143,19 @@ bioclim30s_present_area <- st_transform(bioclim30s_present_sf, "EPSG:3005")
 bioclim30s_present_area <- st_area(bioclim30s_present_sf) # 1.48e+12 m^2
 # convert from m^2 to km^2
 bioclim30s_present_area <- units::set_units(st_area(bioclim30s_present_sf), km^2) 
-# 1 259 171 km^2 of suitable habitat
-
-# Overall study extent:
-# reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
-na_bound_albers <- st_transform(na_bound_sf, "EPSG:3005")
-# calculate study area, in m^2 (default)
-na_bound_area <- st_area(na_bound_albers) # 3.83e+12 m^2
-na_bound_area <- units::set_units(st_area(na_bound_albers), km^2) # 3 805 323  km^2
+# 949 392 km^2 of suitable habitat
 
 # divide predicted present area by total study area to get proportion
 proportion_suitable_bioclim30s_present <- bioclim30s_present_area/na_bound_area
+# 24.9%
 
 
-# Area Calculations for Skeetchestn:
+# Present Suitable Area for Skeetchestn from Bioclim30s Model:
 
 
 # crop results to Skeetchestn territory - convert CRS to Albers first?
-bioclim30s_binary_skeetch <- crop(bioclim30s_present_binary, skeetch_vect_cropped)
-bioclim30s_binary_skeetch <- mask(bioclim30s_binary_skeetch, skeetch_vect_cropped)
+bioclim30s_binary_skeetch <- crop(bioclim30s_present_binary, skeetch_vectWGS84)
+bioclim30s_binary_skeetch <- mask(bioclim30s_binary_skeetch, skeetch_vectWGS84)
 plot(bioclim30s_binary_skeetch)
 
 # turn presence into polygon so we can calculate suitable area
@@ -179,19 +176,11 @@ bioclim30s_present_skeetch_area <- st_transform(bioclim30s_present_skeetch_sf, "
 bioclim30s_present_skeetch_area <- st_area(bioclim30s_present_skeetch_sf) # 1.98e+9 m^2
 # convert from m^2 to km^2
 bioclim30s_present_skeetch_area <- units::set_units(st_area(bioclim30s_present_skeetch_sf), km^2) 
-# 1982 km^2 of suitable habitat
-
-# calculate area of Skeetchestn Territory:
-skeetch_sf <- read_sf("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
-plot(skeetch_sf)
-crs(skeetch_sf) # BC Albers, NAD83
-skeetch_area <- st_area(skeetch_sf) # 7e+09 m^2
-# convert from m^2 to km^2
-skeetch_area <- units::set_units(st_area(skeetch_sf), km^2)
+# 1685 km^2 of suitable habitat
 
 # proportion of suitable area relative to Skeetchestn Territory:
 proportion_suitable_bioclim30s_present_skeetch <- bioclim30s_present_skeetch_area/skeetch_area
-# 28.3%
+# 24.1%
 
 
 
@@ -201,84 +190,76 @@ proportion_suitable_bioclim30s_present_skeetch <- bioclim30s_present_skeetch_are
 
 # turn presence into polygon so we can calculate suitable area
 # first need to filter out presence cells from raster
-prediction_future_pres <- prediction_future_binary %>% 
+bioclim30s_future_presence <- bioclim30s_future_binary %>% 
   filter(binary_mean == "presence")
-
-# repeat for absences? May not be entirely useful information
 
 # vectorize raster to get a polygon around presences
 # need to turn raster into data.frame first
-prediction_future_pres <- as.polygons(prediction_future_pres)
+bioclim30s_future_presence <- as.polygons(bioclim30s_future_presence)
 
 # now turn prediction_present_pres polygons into sf object
-prediction_future_sf <- st_as_sf(prediction_future_pres)
+bioclim30s_future_sf <- st_as_sf(bioclim30s_future_presence)
 
-crs(prediction_future_sf) # WGS84
+crs(bioclim30s_future_sf) # WGS84
 
 # reproject CRS to BC Albers (equal area projection, EPSG:3005) for calculating area
-prediction_future_area <- st_transform(prediction_future_sf, "EPSG:3005")
-prediction_future_area <- st_area(prediction_future_sf) # 1.15e+12 m^2
+bioclim30s_future_area <- st_transform(bioclim30s_future_sf, "EPSG:3005")
+bioclim30s_future_area <- st_area(bioclim30s_future_sf) # 1.15e+12 m^2
 # convert from m^2 to km^2
-prediction_future_area <- units::set_units(st_area(prediction_future_sf), km^2) 
-# 958 305 km^2 of suitable habitat
+bioclim30s_future_area <- units::set_units(st_area(bioclim30s_future_sf), km^2) 
+# 911 753 km^2 of suitable habitat
 
 # divide predicted present area by total study area to get proportion
-proportion_suitable_future <- prediction_future_area/na_bound_area
+proportion_suitable_future <- bioclim30s_future_area/na_bound_area
+# 24%
 
 # now calculate difference between suitable habitat in the present and 2081-2100
 # first need to convert area from class "units" to numeric
 bioclim30s_present_area_num <- as.numeric(bioclim30s_present_area)
-prediction_future_area_num <- as.numeric(prediction_future_area)
-change_area_present_to_2100 <- prediction_future_area_num - bioclim30s_present_area_num
-# -300 865.41617323 km^2 change in suitable habitat
+bioclim30s_future_area_num <- as.numeric(bioclim30s_future_area)
+change_area_present_to_2100 <- bioclim30s_future_area_num - bioclim30s_present_area_num
+# -37638.8290758764 km^2 change in suitable habitat
 
 # percent change:
-percent_change <- (change_area_present_to_2100/prediction_future_area_num)* 100
-# 31.395566... % decrease in suitable habitat??
+percent_change <- (change_area_present_to_2100/bioclim30s_future_area_num)* 100
+# -4.1281... % decrease in suitable habitat?? That can't be right
 
 
-# calculations for Skeetchestn
+# Future Suitable Area Calculations for Skeetchestn
 
 
 # crop and mask total projection to Skeetchestn Territory
-prediction_future_binary_eqArea <- project(prediction_future_binary, "EPSG:3005")
-prediction_future_binary_skeetch <- crop(prediction_future_binary_eqArea, skeetch_vectWGS84)
-prediction_future_binary_skeetch <- mask(prediction_Future_binary_skeetch, skeetch_vectWGS84)
+bioclim30s_future_binary_eqArea <- project(bioclim30s_future_binary, "EPSG:3005")
+bioclim30s_future_binary_skeetch <- crop(bioclim30s_future_binary_eqArea, skeetch_vect)
+bioclim30s_future_binary_skeetch <- mask(bioclim30s_future_binary_skeetch, skeetch_vect)
 
 ggplot() +
-  geom_spatraster(data = prediction_future_binary_skeetch, aes(fill = binary_mean))
+  geom_spatraster(data = bioclim30s_future_binary_skeetch, aes(fill = binary_mean))
 # extent is too small, need to fix
-
-# write to file
-writeRaster(prediction_future_binary_skeetch, filename = "outputs/ran_bioclim30s_thinned_skeetch_future_binary.tif")
 
 # turn presence into polygon so we can calculate suitable area
 # first need to filter out presence cells from raster
-prediction_future_presence_skeetch <- prediction_future_binary_skeetch %>% 
+bioclim30s_future_presence_skeetch <- bioclim30s_future_binary_skeetch %>% 
   filter(binary_mean == "presence")
 
 # vectorize raster to get a polygon around presences
 # need to turn raster into data.frame first
-prediction_future_presence_skeetch <- as.polygons(prediction_future_presence_skeetch)
+bioclim30s_future_presence_skeetch <- as.polygons(bioclim30s_future_presence_skeetch)
 
 # now turn prediction_future polygons into sf object
-prediction_future_skeetch_sf <- st_as_sf(prediction_future_presence_skeetch)
-crs(prediction_future_skeetch_sf) # BC Albers
+bioclim30s_future_skeetch_sf <- st_as_sf(bioclim30s_future_presence_skeetch)
+crs(bioclim30s_future_skeetch_sf) # BC Albers
 
 # calculate area
-prediction_future_skeetch_area <- st_area(prediction_future_skeetch_sf) # 1.98e+9 m^2
+bioclim30s_future_skeetch_area <- st_area(bioclim30s_future_skeetch_sf) # 1.98e+9 m^2
 # convert from m^2 to km^2
-prediction_future_skeetch_area <- units::set_units(st_area(prediction_future_skeetch_sf), km^2) 
-# 1982 km^2 of suitable habitat
-
-# calculate area of Skeetchestn Territory:
-skeetch_sf <- read_sf("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
-plot(skeetch_sf)
-crs(skeetch_sf) # BC Albers, NAD83
-skeetch_area <- st_area(skeetch_sf) # 7e+09 m^2
-# convert from m^2 to km^2
-skeetch_area <- units::set_units(st_area(skeetch_sf), km^2)
+bioclim30s_future_skeetch_area <- units::set_units(st_area(bioclim30s_future_skeetch_sf), km^2) 
+# 1589 km^2 of suitable habitat
 
 # proportion of suitable area relative to Skeetchestn Territory:
-proportion_suitable_future_skeetch <- prediction_future_skeetch_area/skeetch_area
-# 28.3%
+proportion_suitable_future_skeetch <- bioclim30s_future_skeetch_area/skeetch_area
+# 22.7%
+
+# area changed from present to future:
+change_area_skeetch <- bioclim30s_future_skeetch_area - bioclim30s_present_skeetch_area
+# -95.9
