@@ -53,7 +53,7 @@ ggplot()+
 # thin the occurrences to have one per cell in the na_bound_rast raster
 
 set.seed(1234567)
-ran_pres_abs_pred_cell <- thin_by_cell(ran_occ_sf, raster = na_bound_rast)
+ran_occ_thin_cell <- thin_by_cell(ran_occ_sf, raster = na_bound_rast)
 nrow(ran_occ_thin_cell) # 2462
 
 ggplot() +
