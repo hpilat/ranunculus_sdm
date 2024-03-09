@@ -91,21 +91,14 @@ plot(skeetch_sf)
 
 # maps from tidysdm were cutting off part of the Territory boundary
 # need to expand extent by a small amount
- # extent is -121.4859, -120.2995, 50.38478, 51.48137
 # expand extent by 0.5 degrees in each direction
-xlims_skeetch <- c(skeetch_sf$xmin - 0.5, ext(skeetch_sf)$xmax + 0.5)
+xlims_skeetch <- c(ext(skeetch_sf)$xmin - 0.5, ext(skeetch_sf)$xmax + 0.5)
 ylims_skeetch <- c(ext(skeetch_sf)$ymin - 0.5, ext(skeetch_sf)$ymax + 0.5)
-
 extent_skeetch <- terra::ext(xlims_skeetch, ylims_skeetch)
-# error, expected 4 numbers
-# try inputting bounding box directly, round up existing extent
-extent_skeetch <- terra::ext(-121.49, -120.30, 50.40, 51.50)
-skeetch_extended <- st_crop(skeetch_sf, extent_skeetch)
-skeetch_extended
 
+# crop original sf object to new extent
+skeetch_vect_extended <- st_crop(skeetch_sf, extent_skeetch)
+skeetch_vect_extended
 
-# transform back to Albers for use in area calculations
-skeetch_vect_cropped <- project(skeetch_vect_extended, "EPSG:3005")
-plot(skeetch_vect_cropped)
 # write to file for reuse
-writeVector(skeetch_vect_cropped, filename = "data/extents/skeetch_vect_cropped_albers.shp", overwrite = TRUE)
+st_write(skeetch_vect_extended, dsn = "data/extents/skeetch_vect_cropped_albers.shp", append = FALSE)
