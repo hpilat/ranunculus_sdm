@@ -10,7 +10,7 @@
 library(tidysdm)
 library(tidyterra)
 library(sf)
-library(pastclim)
+library(terra)
 library(ggplot2)
 library(overlapping)
 
