@@ -35,7 +35,7 @@ na_bound_vect <- vect("data/extents/na_bound_vect.shp")
 # sf object masked to study extent, for area calculations
 na_bound_sf <- read_sf("data/extents/na_bound_sf.shp")
 # Skeetchestn territory boundary vector for masking:
-skeetch_vect <- vect("data/raw/SkeetchestnTT_2020/SkeetchestnTT_2020.shp")
+skeetch_vect <- vect("data/extents/skeetch_vect_cropped_albers.shp")
 # transform to WGS84:
 skeetch_vectWGS84 <- project(skeetch_vect, "EPSG:4326")
 
