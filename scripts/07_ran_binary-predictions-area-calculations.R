@@ -1,5 +1,6 @@
-# This script projects our bioclim30s model to present day predictions of Ranunculus
-# habitat suitability
+# This is script 07/07
+# This script calculates suitable habitat in km^2 for our total study area
+  # and Skeetchestn Territory
 # please first run the following scripts in the following order:
   # 01_data_download.R
   # 02_continental_divide.Rmd
