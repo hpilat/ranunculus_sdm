@@ -130,6 +130,7 @@ summary(ran_pres_abs_pred) # No NA values
 # need a smaller sample to calculate collinearity between variables
 
 # try sample size of 5000 cells
+set.seed(1234567)
 predictors_sample <- terra::spatSample(climate_present, size = 5000, 
                                        method = "random", replace = FALSE, 
                                        na.rm = FALSE, as.raster = TRUE,

@@ -143,6 +143,7 @@ pairs(predictors_multi)
 # may need a smaller sample to calculate collinearity between variables
 
 # try sample size of 5000 cells
+set.seed(1234567)
 predictors_sample <- terra::spatSample(predictors_multi, size = 5000, 
                                        method = "random", replace = FALSE, 
                                        na.rm = FALSE, as.raster = TRUE,
